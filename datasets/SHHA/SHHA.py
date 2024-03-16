@@ -1,15 +1,10 @@
-import numpy as np
 import os
-import random
-from scipy import io as sio
-import sys
-import torch
-from torch.utils import data
-from PIL import Image, ImageOps
-
+import numpy as np
 import pandas as pd
+from PIL import Image
+from torch.utils import data
 
-from config import cfg
+
 
 class SHHA(data.Dataset):
     def __init__(self, data_path, mode, main_transform=None, img_transform=None, gt_transform=None):

@@ -1,11 +1,10 @@
-from matplotlib import pyplot as plt
 import os
-import random
 import torch
-from torch.autograd import Variable
-import torchvision.transforms as standard_transforms
-import misc.transforms as own_transforms
 import pandas as pd
+from torch.autograd import Variable
+from matplotlib import pyplot as plt
+import misc.transforms as own_transforms
+import torchvision.transforms as standard_transforms
 
 from models.CC import CrowdCounter
 from config import cfg
@@ -15,8 +14,9 @@ from PIL import Image, ImageOps
 
 import time
 
-torch.cuda.set_device(0)
-torch.backends.cudnn.benchmark = True
+if cfg.GPU_DEVICE == 'cuda':
+    torch.cuda.set_device(0)
+    torch.backends.cudnn.benchmark = True
 
 exp_name = './DULR-display-save-mat'
 if not os.path.exists(exp_name):
@@ -51,6 +51,7 @@ dataRoot = './exp/data/shanghaitech_part_B/test'
 # model_path = './exp/03-23_10-46_SHHB_ShufLWRN_0.0001/all_ep_285_mae_8.2_mse_12.8.pth'
 model_path = './exp/03-30_13-38_GCC_MobLWRN_0.0001_rd/all_ep_287_mae_30.2_mse_64.1.pth'
 
+
 def main():
     # file_list = [filename for filename in os.listdir(dataRoot+'/img/') if os.path.isfile(os.path.join(dataRoot+'/img/',filename))]
     file_list = [filename for root, dirs, filename in os.walk(dataRoot + '/img/')]
@@ -65,7 +66,7 @@ def main():
 def test(file_list, model_path):
     net = CrowdCounter(cfg.GPU_ID, cfg.NET)
     net.load_state_dict(torch.load(model_path))
-    net.cuda()
+    net.to(cfg.DEVICE)
     net.eval()
 
     maes = AverageMeter()
@@ -75,7 +76,7 @@ def test(file_list, model_path):
     time_sampe = 0
     for filename in file_list:
         step = step + 1
-        print filename
+        print(filename)
         imgname = dataRoot + '/img/' + filename
         filename_no_ext = filename.split('.')[0]
 
@@ -114,14 +115,12 @@ def test(file_list, model_path):
 
         gt_count = np.sum(den)
 
-        img = Variable(img[None, :, :, :], volatile=True).cuda()
+        img = Variable(img[None, :, :, :], volatile=True).to(cfg.DEVICE)
 
         # forward
         pred_map = net.test_forward(img)
 
-
-
-        pred_map = pred_map.cpu().data.numpy()[0, 0, :, :]
+        pred_map = pred_map.to(torch.device("cpu")).data.numpy()[0, 0, :, :]
         pred_cnt = np.sum(pred_map) / 2550.0
         pred_map = pred_map / np.max(pred_map + 1e-20)
         pred_map = pred_map[0:ht_1, 0:wd_1]
@@ -135,7 +134,7 @@ def test(file_list, model_path):
     mae = maes.avg
     mse = np.sqrt(mses.avg)
 
-    print '\n[MAE: %fms][MSE: %fms]' % (mae, mse)
+    print('\n[MAE: %fms][MSE: %fms]' % (mae, mse))
 
 
 def get_pts(data):
@@ -153,7 +152,3 @@ def get_pts(data):
 
 if __name__ == '__main__':
     main()
-
-
-
-

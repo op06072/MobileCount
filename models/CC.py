@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import pdb
+from config import cfg
+
 
 class CrowdCounter(nn.Module):
-    def __init__(self,gpus,model_name):
+    def __init__(self, gpus, model_name):
         super(CrowdCounter, self).__init__()        
         
         if model_name == 'MobileCount':
@@ -13,13 +13,15 @@ class CrowdCounter(nn.Module):
             from MobileCountx1_25 import MobileCount as net
         elif model_name == 'MobileCountx2':
             from MobileCountx2 import MobileCount as net
+        elif model_name == 'LSANet':
+            from .LSANet import LSANet as net
 
         self.CCN = net()
-        if len(gpus)>1:
-            self.CCN = torch.nn.DataParallel(self.CCN, device_ids=gpus).cuda()
+        if len(gpus) > 1:
+            self.CCN = torch.nn.DataParallel(self.CCN, device_ids=gpus).to(cfg.DEVICE)
         else:
-            self.CCN=self.CCN.cuda()
-        self.loss_mse_fn = nn.MSELoss().cuda()
+            self.CCN=self.CCN.to(cfg.DEVICE)
+        self.loss_mse_fn = nn.MSELoss().to(cfg.DEVICE)
         
     @property
     def loss(self):

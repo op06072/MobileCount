@@ -40,7 +40,7 @@ def real_init_weights(m):
             for mini_m in m.children():
                 real_init_weights(mini_m)
         else:
-            print m
+            print(m)
 
 def weights_normal_init(*models):
     for model in models:
@@ -117,15 +117,15 @@ def vis_results(exp_name, epoch, writer, restore, img, pred_map, gt_map):
 
 def print_summary(exp_name,scores,train_record):
     mae, mse, loss = scores
-    print '='*50
-    print exp_name
-    print '    '+ '-'*20
-    print '    [mae %.2f mse %.2f], [val loss %.4f]' % (mae, mse, loss)         
-    print '    '+ '-'*20
-    print '[best] [model: %s] , [mae %.2f], [mse %.2f]' % (train_record['best_model_name'],\
+    print('='*50)
+    print(exp_name)
+    print('    '+ '-'*20)
+    print('    [mae %.2f mse %.2f], [val loss %.4f]' % (mae, mse, loss))
+    print('    '+ '-'*20)
+    print('[best] [model: %s] , [mae %.2f], [mse %.2f]' % (train_record['best_model_name'],\
                                                         train_record['best_mae'],\
-                                                        train_record['best_mse'])
-    print '='*50
+                                                        train_record['best_mse']))
+    print('='*50)
 
 def print_WE_summary(log_txt,epoch,scores,train_record,c_maes):
     mae, mse, loss = scores
@@ -139,14 +139,14 @@ def print_WE_summary(log_txt,epoch,scores,train_record,c_maes):
 
         f.write('='*15 + '+'*15 + '='*15 + '\n\n')
 
-    print '='*50
-    print '    '+ '-'*20
-    print '    [mae %.2f mse %.2f], [val loss %.4f]' % (mae, mse, loss)
-    print '    '+ '-'*20
-    print '[best] [model: %s] , [mae %.2f], [mse %.2f]' % (train_record['best_model_name'],\
+    print('='*50)
+    print('    '+ '-'*20)
+    print('    [mae %.2f mse %.2f], [val loss %.4f]' % (mae, mse, loss))
+    print('    '+ '-'*20)
+    print('[best] [model: %s] , [mae %.2f], [mse %.2f]' % (train_record['best_model_name'],\
                                                         train_record['best_mae'],\
-                                                        train_record['best_mse'])
-    print '='*50
+                                                        train_record['best_mse']))
+    print('='*50)
 
 def print_GCC_summary(log_txt,epoch, scores,train_record,c_maes,c_mses):
     mae, mse, loss = scores
@@ -171,14 +171,14 @@ def print_GCC_summary(log_txt,epoch, scores,train_record,c_maes,c_mses):
 
         f.write('='*15 + '+'*15 + '='*15 + '\n\n')
 
-    print '='*50
-    print '    '+ '-'*20
-    print '    [mae %.2f mse %.2f], [val loss %.4f]' % (mae, mse, loss)
-    print '    '+ '-'*20
-    print '[best] [model: %s] , [mae %.2f], [mse %.2f]' % (train_record['best_model_name'],\
+    print('='*50)
+    print('    '+ '-'*20)
+    print('    [mae %.2f mse %.2f], [val loss %.4f]' % (mae, mse, loss))
+    print('    '+ '-'*20)
+    print('[best] [model: %s] , [mae %.2f], [mse %.2f]' % (train_record['best_model_name'],\
                                                         train_record['best_mae'],\
-                                                        train_record['best_mse'])
-    print '='*50
+                                                        train_record['best_mse']))
+    print('='*50)
 
 
 def update_model(net,epoch,exp_path,exp_name,scores,train_record,log_file):
@@ -208,10 +208,10 @@ def copy_cur_env(work_dir, dst_dir, exception):
 
     for filename in os.listdir(work_dir):
 
-        file = os.path.join(work_dir,filename)
-        dst_file = os.path.join(dst_dir,filename)
+        file = os.path.join(work_dir, filename)
+        dst_file = os.path.join(dst_dir, filename)
 
-        if os.path.isdir(file) and exception not in filename:
+        if os.path.isdir(file) and exception not in filename and not os.path.exists(dst_file):
             shutil.copytree(file, dst_file)
         elif os.path.isfile(file):
             shutil.copyfile(file,dst_file)
