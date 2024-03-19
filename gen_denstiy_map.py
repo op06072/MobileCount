@@ -42,15 +42,17 @@ model_path = './exp/04-23_00-08_QNRF_MobLWRN_0.0001/all_ep_448_mae_131.1_mse_222
 
 
 def main():
-    # file_list = [filename for filename in os.listdir(dataRoot+'/img/') if os.path.isfile(os.path.join(dataRoot+'/img/',filename))]
+    # file_list = [
+    #   filename for filename in os.listdir(dataRoot+'/img/') if os.path.isfile(os.path.join(dataRoot+'/img/',filename))
+    # ]
     file_list = [filename for root, dirs, filename in os.walk(dataRoot + '/img/')]
 
     test(file_list[0], model_path)
 
 
-def test(file_list, model_path):
+def test(file_list, model_dir):
     net = CrowdCounter(cfg.GPU_ID, cfg.NET)
-    net.load_state_dict(torch.load(model_path))
+    net.load_state_dict(torch.load(model_dir))
     net.cuda()
     net.eval()
 

@@ -7,7 +7,7 @@ from misc.utils import *
 from models.CC import CrowdCounter
 
 
-class Trainer():
+class Trainer:
     def __init__(self, dataloader, cfg_data, pwd):
 
         self.cfg_data = cfg_data
@@ -21,7 +21,8 @@ class Trainer():
 
         self.net_name = cfg.NET
         self.net = CrowdCounter(cfg.GPU_ID, self.net_name).to(self.device)
-        self.optimizer = optim.Adam(self.net.parameters(), lr=cfg.LR, weight_decay=1e-4)
+        # self.optimizer = optim.Adam(self.net.parameters(), lr=cfg.LR, weight_decay=cfg.WEIGHT_DECAY)
+        self.optimizer = optim.NAdam(self.net.parameters(), lr=cfg.LR, weight_decay=cfg.WEIGHT_DECAY)
         # self.optimizer = optim.SGD(self.net.parameters(), cfg.LR, momentum=0.95,weight_decay=5e-4)
         self.scheduler = StepLR(self.optimizer, step_size=cfg.NUM_EPOCH_LR_DECAY, gamma=cfg.LR_DECAY)
 
@@ -36,6 +37,27 @@ class Trainer():
             self.net.load_state_dict(torch.load(cfg.PRE_GCC_MODEL))
 
         self.train_loader, self.val_loader, self.restore_transform = dataloader()
+
+        self.train_datas = []
+        self.val_datas = []
+
+    def preload(self):
+        if self.data_mode in ['SHHA', 'SHHB', 'QNRF', 'UCF50']:
+            print("Load the train datasets.")
+            for i, data in enumerate(self.train_loader, 0):
+                img, gt_map = data
+                img = Variable(img).to(self.device)
+                gt_map = Variable(gt_map).to(self.device)
+                self.train_datas.append([img, gt_map])
+
+            print("Load the validation datasets.")
+            for i, data in enumerate(self.val_loader, 0):
+                img, gt_map = data
+                img = Variable(img).to(self.device)
+                gt_map = Variable(gt_map).to(self.device)
+                self.val_datas.append([img, gt_map])
+            print("Finish the preload.")
+            print('=' * 20)
 
     def forward(self):
 
@@ -58,16 +80,16 @@ class Trainer():
                 self.timer['val time'].tic()
                 if self.data_mode in ['SHHA', 'SHHB', 'QNRF', 'UCF50']:
                     self.validate_V1()
-                elif self.data_mode is 'WE':
+                elif self.data_mode == 'WE':
                     self.validate_V2()
-                elif self.data_mode is 'GCC':
+                elif self.data_mode == 'GCC':
                     self.validate_V3()
                 self.timer['val time'].toc(average=False)
                 print('val time: {:.2f}s'.format(self.timer['val time'].diff))
 
     def train(self):  # training for all datasets
         self.net.train()
-        for i, data in enumerate(self.train_loader, 0):
+        for i, data in enumerate(self.train_datas):
             self.timer['iter time'].tic()
             img, gt_map = data
             img = Variable(img).to(self.device)
@@ -83,11 +105,15 @@ class Trainer():
                 self.i_tb += 1
                 self.writer.add_scalar('train_loss', loss.item(), self.i_tb)
                 self.timer['iter time'].toc(average=False)
-                print('[ep %d][it %d][loss %.4f][lr %.4f][%.2fs]' % \
-                      (self.epoch + 1, i + 1, loss.item(), self.optimizer.param_groups[0]['lr'] * 10000,
-                       self.timer['iter time'].diff))
+                print('[ep %d][it %d][loss %.4f][lr %.4f][%.2fs]' % (
+                    self.epoch + 1, i + 1, loss.item(),
+                    self.optimizer.param_groups[0]['lr'] * 10000,
+                    self.timer['iter time'].diff
+                ))
                 print('        [cnt: gt: %.1f pred: %.2f]' % (
-                gt_map[0].sum().data / self.cfg_data.LOG_PARA, pred_map[0].sum().data / self.cfg_data.LOG_PARA))
+                    gt_map[0].sum().data / self.cfg_data.LOG_PARA,
+                    pred_map[0].sum().data / self.cfg_data.LOG_PARA
+                ))
 
     def validate_V1(self):  # validate_V1 for SHHA, SHHB, UCF-QNRF, UCF50
 
@@ -100,7 +126,7 @@ class Trainer():
         time_sampe = 0
         step = 0
 
-        for vi, data in enumerate(self.val_loader, 0):
+        for vi, data in enumerate(self.val_datas):
             img, gt_map = data
 
             with torch.no_grad():
@@ -175,8 +201,10 @@ class Trainer():
                         losses.update(self.net.loss.item(), i_sub)
                         maes.update(abs(gt_count - pred_cnt), i_sub)
                     if vi == 0:
-                        vis_results(self.exp_name, self.epoch, self.writer, self.restore_transform, img, pred_map,
-                                    gt_map)
+                        vis_results(
+                            self.exp_name, self.epoch, self.writer,
+                            self.restore_transform, img, pred_map, gt_map
+                        )
 
         mae = np.average(maes.avg)
         loss = np.average(losses.avg)
@@ -189,8 +217,10 @@ class Trainer():
         self.writer.add_scalar('mae_s4', maes.avg[3], self.epoch + 1)
         self.writer.add_scalar('mae_s5', maes.avg[4], self.epoch + 1)
 
-        self.train_record = update_model(self.net, self.epoch, self.exp_path, self.exp_name, [mae, 0, loss],
-                                         self.train_record, self.log_txt)
+        self.train_record = update_model(
+            self.net, self.epoch, self.exp_path, self.exp_name,
+            [mae, 0, loss], self.train_record, self.log_txt
+        )
         print_WE_summary(self.log_txt, self.epoch, [mae, 0, loss], self.train_record, maes)
 
     def validate_V3(self):  # validate_V3 for GCC
@@ -201,8 +231,16 @@ class Trainer():
         maes = AverageMeter()
         mses = AverageMeter()
 
-        c_maes = {'level': AverageCategoryMeter(9), 'time': AverageCategoryMeter(8), 'weather': AverageCategoryMeter(7)}
-        c_mses = {'level': AverageCategoryMeter(9), 'time': AverageCategoryMeter(8), 'weather': AverageCategoryMeter(7)}
+        c_maes = {
+            'level': AverageCategoryMeter(9),
+            'time': AverageCategoryMeter(8),
+            'weather': AverageCategoryMeter(7)
+        }
+        c_mses = {
+            'level': AverageCategoryMeter(9),
+            'time': AverageCategoryMeter(8),
+            'weather': AverageCategoryMeter(7)
+        }
 
         for vi, data in enumerate(self.val_loader, 0):
             img, gt_map, attributes_pt = data
@@ -235,7 +273,10 @@ class Trainer():
                     # c_mses['weather'].update(s_mse, attributes_pt[i_img][2])
 
                 # if vi == 0:
-                #     vis_results(self.exp_name, self.epoch, self.writer, self.restore_transform, img, pred_map, gt_map)
+                #     vis_results(
+                #           self.exp_name, self.epoch, self.writer,
+                #           self.restore_transform, img, pred_map, gt_map
+                #     )
 
         loss = losses.avg
         mae = maes.avg
@@ -245,7 +286,12 @@ class Trainer():
         self.writer.add_scalar('mae', mae, self.epoch + 1)
         self.writer.add_scalar('mse', mse, self.epoch + 1)
 
-        self.train_record = update_model(self.net, self.epoch, self.exp_path, self.exp_name, [mae, mse, loss],
-                                         self.train_record, self.log_txt)
+        self.train_record = update_model(
+            self.net, self.epoch, self.exp_path, self.exp_name,
+            [mae, mse, loss], self.train_record, self.log_txt
+        )
 
-        print_GCC_summary(self.log_txt, self.epoch, [mae, mse, loss], self.train_record, c_maes, c_mses)
+        print_GCC_summary(
+            self.log_txt, self.epoch, [mae, mse, loss],
+            self.train_record, c_maes, c_mses
+        )

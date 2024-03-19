@@ -6,11 +6,11 @@ from matplotlib import pyplot as plt
 import misc.transforms as own_transforms
 import torchvision.transforms as standard_transforms
 
-from models.CC import CrowdCounter
+import scipy.io as sio
 from config import cfg
 from misc.utils import *
-import scipy.io as sio
 from PIL import Image, ImageOps
+from models.CC import CrowdCounter
 
 import time
 
@@ -53,7 +53,9 @@ model_path = './exp/03-30_13-38_GCC_MobLWRN_0.0001_rd/all_ep_287_mae_30.2_mse_64
 
 
 def main():
-    # file_list = [filename for filename in os.listdir(dataRoot+'/img/') if os.path.isfile(os.path.join(dataRoot+'/img/',filename))]
+    # file_list = [
+    #   filename for filename in os.listdir(dataRoot+'/img/') if os.path.isfile(os.path.join(dataRoot+'/img/',filename))
+    # ]
     file_list = [filename for root, dirs, filename in os.walk(dataRoot + '/img/')]
     # pdb.set_trace()
 
@@ -63,9 +65,9 @@ def main():
     test(file_list[0], model_path)
 
 
-def test(file_list, model_path):
+def test(file_list, model_dir):
     net = CrowdCounter(cfg.GPU_ID, cfg.NET)
-    net.load_state_dict(torch.load(model_path))
+    net.load_state_dict(torch.load(model_dir))
     net.to(cfg.DEVICE)
     net.eval()
 

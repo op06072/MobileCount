@@ -3,14 +3,24 @@ import torch.nn as nn
 
 
 class Conv2d(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, NL='relu', same_padding=False, bn=False, dilation=1):
+    def __init__(
+            self, in_channels, out_channels,
+            kernel_size, stride=1, NL='relu',
+            same_padding=False, bn=False, dilation=1
+    ):
         super(Conv2d, self).__init__()
         padding = int((kernel_size - 1) / 2) if same_padding else 0
         self.conv = []
-        if dilation==1:
-            self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding=padding, dilation=dilation)
+        if dilation == 1:
+            self.conv = nn.Conv2d(
+                in_channels, out_channels, kernel_size,
+                stride, padding=padding, dilation=dilation
+            )
         else:
-            self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding=dilation, dilation=dilation)
+            self.conv = nn.Conv2d(
+                in_channels, out_channels, kernel_size,
+                stride, padding=dilation, dilation=dilation
+            )
         self.bn = nn.BatchNorm2d(out_channels, eps=0.001, momentum=0, affine=True) if bn else None
         if NL == 'relu' :
             self.relu = nn.ReLU(inplace=True) 

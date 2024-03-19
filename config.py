@@ -21,18 +21,25 @@ if __C.DATASET == 'GCC':  # only for GCC
     __C.VAL_MODE = cfg_data.VAL_MODE
 
 __C.NET = 'LSANet'  # net selection: MobileCount, MobileCountx1_25, MobileCountx2
+__C.NET_BN = True
+__C.NET_ACT = True
 
 __C.PRE_GCC = False  # use the pretrained model on GCC dataset
 __C.PRE_GCC_MODEL = './exp/04-06_16-19_GCC_CSRNet_0.0001_rd/all_ep_130_mae_34.9_mse_71.9.pth'  # path to model
 
-__C.DEVICE = torch.device("mps")
-__C.GPU_DEVICE = "mps"
+__C.DEVICE = torch.device("cuda")
+__C.GPU_DEVICE = "cuda"
 __C.GPU_ID = [0]  # sigle gpu: [0], [1] ...; multi gpus: [0,1]
 
 # learning rate settings
-__C.LR = 1e-4  # learning rate
-__C.LR_DECAY = 0.995  # decay rate
+# __C.LR = 1e-4  # learning rate
+__C.LR = 4e-4
+# __C.LR_DECAY = 0.995  # decay rate
+# __C.LR_DECAY = 0.9927 # 2e-4
+__C.LR_DECAY = 0.9905  # 4e-4
 __C.LR_DECAY_START = -1  # when training epoch is more than it, the learning rate will be begin to decay
+__C.WEIGHT_DECAY = 1e-3
+# __C.WEIGHT_DECAY = 1e-4
 __C.NUM_EPOCH_LR_DECAY = 1  # decay frequency
 __C.MAX_EPOCH = 500
 
@@ -45,6 +52,12 @@ __C.EXP_NAME = now \
                + '_' + __C.DATASET \
                + '_' + __C.NET \
                + '_' + str(__C.LR)
+
+if __C.NET == 'LSANet':
+    if __C.NET_BN:
+        __C.EXP_NAME += '_BN'
+    if __C.NET_ACT:
+        __C.EXP_NAME += '_ACT'
 
 if __C.DATASET == 'UCF50':
     __C.EXP_NAME += '_' + str(__C.VAL_INDEX)

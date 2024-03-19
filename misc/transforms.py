@@ -84,8 +84,10 @@ class FreeScale(object):
         self.size = size  # (h, w)
 
     def __call__(self, img, mask):
-        return img.resize((self.size[1], self.size[0]), Image.BILINEAR), mask.resize((self.size[1], self.size[0]),
-                                                                                     Image.NEAREST)
+        return (
+            img.resize((self.size[1], self.size[0]), Image.BILINEAR),
+            mask.resize((self.size[1], self.size[0]), Image.NEAREST)
+        )
 
 
 class ScaleDown(object):

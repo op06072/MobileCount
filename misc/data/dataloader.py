@@ -40,6 +40,7 @@ else:
 
 class ExceptionWrapper(object):
     r"""Wraps an exception plus traceback to communicate across threads"""
+
     def __init__(self, exc_info):
         # It is important that we don't store exc_info, see
         # NOTE [ Python Traceback Reference Cycle Problem ]
@@ -183,6 +184,7 @@ def _pin_memory_loop(in_queue, out_queue, device_id, done_event):
             else:
                 out_queue.put((idx, batch))
 
+
 numpy_type_map = {
     'float64': torch.DoubleTensor,
     'float32': torch.FloatTensor,
@@ -234,11 +236,6 @@ def default_collate(batch):
         return [default_collate(samples) for samples in transposed]
 
     raise TypeError((error_msg.format(type(batch[0]))))
-
-
-
-
-
 
 
 def pin_memory_batch(batch):
@@ -300,6 +297,7 @@ https://github.com/python/cpython/blob/d4d60134b29290049e28df54f23493de4f1824b6/
 def _set_python_exit_flag():
     global _python_exit_status
     _python_exit_status = True
+
 
 atexit.register(_set_python_exit_flag)
 

@@ -107,17 +107,30 @@ def loading_data():
         standard_transforms.ToPILImage()
     ])
 
-    train_set = SHHA(os.path.realpath(cfg_data.DATA_PATH) + '/train_data', 'train', main_transform=train_main_transform,
-                     img_transform=img_transform, gt_transform=gt_transform)
+    train_set = SHHA(
+        os.path.realpath(cfg_data.DATA_PATH) + '/train_data', 'train',
+        main_transform=train_main_transform, img_transform=img_transform, gt_transform=gt_transform
+    )
     train_loader = None
     if cfg_data.TRAIN_BATCH_SIZE == 1:
-        train_loader = DataLoader(train_set, batch_size=1, num_workers=8, shuffle=True, drop_last=True)
+        train_loader = DataLoader(
+            train_set, batch_size=1, num_workers=8,
+            shuffle=True, drop_last=True, prefetch_factor=3
+        )
     elif cfg_data.TRAIN_BATCH_SIZE > 1:
-        train_loader = DataLoader(train_set, batch_size=cfg_data.TRAIN_BATCH_SIZE, num_workers=8,
-                                  collate_fn=SHHA_collate, shuffle=True, drop_last=True)
+        train_loader = DataLoader(
+            train_set, batch_size=cfg_data.TRAIN_BATCH_SIZE, num_workers=8,
+            collate_fn=SHHA_collate, shuffle=True, drop_last=True, prefetch_factor=3
+        )
 
-    val_set = SHHA(os.path.realpath(cfg_data.DATA_PATH) + '/test_data', 'test', main_transform=None, img_transform=img_transform,
-                   gt_transform=gt_transform)
-    val_loader = DataLoader(val_set, batch_size=cfg_data.VAL_BATCH_SIZE, num_workers=8, shuffle=True, drop_last=False)
+    val_set = SHHA(
+        os.path.realpath(cfg_data.DATA_PATH) + '/test_data',
+        'test', main_transform=None,
+        img_transform=img_transform, gt_transform=gt_transform
+    )
+    val_loader = DataLoader(
+        val_set, batch_size=cfg_data.VAL_BATCH_SIZE, num_workers=8,
+        shuffle=True, drop_last=False, prefetch_factor=3
+    )
 
     return train_loader, val_loader, restore_transform

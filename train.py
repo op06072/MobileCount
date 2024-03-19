@@ -13,7 +13,7 @@ from config import cfg
 if __name__ == '__main__':
     # freeze_support()
 
-    # ------------prepare enviroment------------
+    # ------------prepare environment------------
     seed = cfg.SEED
     if seed is not None:
         np.random.seed(seed)
@@ -59,4 +59,5 @@ if __name__ == '__main__':
     # ------------Start Training------------
     pwd = os.path.split(os.path.realpath(__file__))[0]
     cc_trainer = Trainer(loading_data, cfg_data, pwd)
+    cc_trainer.preload()
     cc_trainer.forward()
