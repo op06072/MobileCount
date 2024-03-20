@@ -62,9 +62,9 @@ def generate_den_map(img_paths, srcRoot, dstRoot, attr):
         img = Image.open(os.path.join(srcRoot, 'images', img_path))
         wd, ht = img.size
 
-        dst_wd = wd / 16 * 16
+        dst_wd = int(wd / 16 * 16)
         rate_wd = float(dst_wd) / float(wd)
-        dst_ht = ht / 16 * 16
+        dst_ht = int(ht / 16 * 16)
         rate_ht = float(dst_ht) / float(ht)
 
         # print [ht,wd]

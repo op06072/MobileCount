@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from torch import optim
 from torch.autograd import Variable
 from torch.optim.lr_scheduler import StepLR
@@ -7,16 +9,29 @@ from config import cfg
 from misc.utils import *
 from models.CC import CrowdCounter
 
+from PIL.Image import Image
+from datasets import DataDict
+from easydict import EasyDict
+from misc.transforms import Compose
+from torch.utils.data import DataLoader
+from multiprocessing.managers import DictProxy
+from typing import Any, List, AnyStr
+
 
 class Trainer:
-    def __init__(self, dataloader, cfg_data, pwd):
+    def __init__(
+            self,
+            dataloader: Any,
+            cfg_data: EasyDict,
+            pwd: str | bytes
+    ):
 
         self.cfg_data = cfg_data
 
         self.data_mode = cfg.DATASET
         self.exp_name = cfg.EXP_NAME
         self.exp_path = cfg.EXP_PATH
-        self.pwd = pwd
+        self.pwd: str | bytes = pwd
 
         self.device = cfg.DEVICE
 
@@ -37,36 +52,20 @@ class Trainer:
         if cfg.PRE_GCC:
             self.net.load_state_dict(torch.load(cfg.PRE_GCC_MODEL))
 
+        self.train_loader: DataLoader[Any]  | None
+        self.val_loader: DataLoader[Any]
+        self.restore_transform: Compose
         if self.data_mode in ['SHHA', 'SHHB', 'QNRF', 'UCF50']:
-            if cfg.DATA_WORKERS != 0:
+            if cfg.DATA_WORKERS == 0:
+                datas: DictProxy[str, List[Image]] | DataDict = {}
+            else:
                 self.manager = Manager()
                 datas = self.manager.dict()
-            else:
-                datas = {}
-            self.train_loader, self.val_loader, self.restore_transform = dataloader(datas)
+            self.train_loader, self.val_loader, self.restore_transform = dataloader(
+                datas, data_workers=cfg.DATA_WORKERS
+            )
         else:
             self.train_loader, self.val_loader, self.restore_transform = dataloader()
-
-        # self.train_datas = datas[0]
-        # self.val_datas = datas[1]
-
-    def preload(self):
-        if self.data_mode in ['SHHA', 'SHHB', 'QNRF', 'UCF50']:
-            print("Load the train datasets.")
-            for i, data in enumerate(self.train_loader, 0):
-                img, gt_map = data
-                img = Variable(img).to(self.device)
-                gt_map = Variable(gt_map).to(self.device)
-                self.train_datas.append([img, gt_map])
-
-            print("Load the validation datasets.")
-            for i, data in enumerate(self.val_loader, 0):
-                img, gt_map = data
-                img = Variable(img).to(self.device)
-                gt_map = Variable(gt_map).to(self.device)
-                self.val_datas.append([img, gt_map])
-            print("Finish the preload.")
-            print('=' * 20)
 
     def forward(self):
 
@@ -184,7 +183,7 @@ class Trainer:
 
         roi_mask = []
         from datasets.WE.setting import cfg_data
-        from scipy import io as sio
+        from scipy import io as sio  # type: ignore
         for val_folder in cfg_data.VAL_FOLDER:
             roi_mask.append(sio.loadmat(os.path.join(cfg_data.DATA_PATH, 'test', val_folder + '_roi.mat'))['BW'])
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import numpy as np
 import pandas as pd
@@ -5,9 +7,13 @@ from PIL import Image
 from functools import cache
 from torch.utils import data
 
+from datasets import DataDict
+from multiprocessing.managers import DictProxy
+
 
 class SHHA(data.Dataset):
-    def __init__(self, data_path, mode, main_transform=None, img_transform=None, gt_transform=None):
+    def __init__(self, data_path, main_transform=None, img_transform=None, gt_transform=None):
+        self.datas = None
         self.img_path = data_path + '/img'
         self.gt_path = data_path + '/den'
         self.data_files = [
@@ -19,7 +25,7 @@ class SHHA(data.Dataset):
         self.img_transform = img_transform
         self.gt_transform = gt_transform
 
-    def setdict(self, datas):
+    def setdict(self, datas: DataDict | DictProxy):
         self.datas = datas
 
     def __getitem__(self, index):

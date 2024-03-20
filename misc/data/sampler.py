@@ -28,6 +28,7 @@ class SequentialSampler(Sampler):
     """
 
     def __init__(self, data_source):
+        super().__init__(data_source)
         self.data_source = data_source
 
     def __iter__(self):
@@ -48,6 +49,7 @@ class RandomSampler(Sampler):
     """
 
     def __init__(self, data_source, replacement=False, num_samples=None):
+        super().__init__(data_source)
         self.data_source = data_source
         self.replacement = replacement
         self.num_samples = num_samples

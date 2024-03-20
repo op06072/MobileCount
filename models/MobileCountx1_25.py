@@ -198,8 +198,7 @@ class MobileCount(nn.Module):
                 nn.BatchNorm2d(planes),
             )
 
-        layers = []
-        layers.append(block(self.inplanes, planes, stride=stride, downsample=downsample, expansion=expansion))
+        layers = [block(self.inplanes, planes, stride=stride, downsample=downsample, expansion=expansion)]
         self.inplanes = planes
         for i in range(1, blocks):
             layers.append(block(self.inplanes, planes, expansion=expansion))

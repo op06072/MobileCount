@@ -1,4 +1,5 @@
 import time
+import math
 import torch
 from easydict import EasyDict as edict
 
@@ -9,7 +10,7 @@ cfg = __C
 # ------------------------------TRAIN------------------------
 __C.SEED = 3035  # random seed,  for reporduction
 __C.DATASET = 'SHHA'  # dataset selection: SHHA, SHHB, UCF50, QNRF, WE
-__C.DATA_WORKERS = 0
+__C.DATA_WORKERS = 8
 
 if __C.DATASET == 'UCF50':  # only for UCF50
     from datasets.UCF50.setting import cfg_data
@@ -28,16 +29,19 @@ __C.NET_ACT = True
 __C.PRE_GCC = False  # use the pretrained model on GCC dataset
 __C.PRE_GCC_MODEL = './exp/04-06_16-19_GCC_CSRNet_0.0001_rd/all_ep_130_mae_34.9_mse_71.9.pth'  # path to model
 
-__C.DEVICE = torch.device("cuda")
-__C.GPU_DEVICE = "cuda"
+__C.DEVICE = torch.device(
+    "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+)
+__C.GPU_DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else ""
 __C.GPU_ID = [0]  # sigle gpu: [0], [1] ...; multi gpus: [0,1]
 
 # learning rate settings
 # __C.LR = 1e-4  # learning rate
-__C.LR = 4e-4
+__C.LR = 6e-4
 # __C.LR_DECAY = 0.995  # decay rate
 # __C.LR_DECAY = 0.9927 # 2e-4
-__C.LR_DECAY = 0.9905  # 4e-4
+# __C.LR_DECAY = 0.9905  # 4e-4
+__C.LR_DECAY = (0.22/(__C.LR*(10**math.floor(math.log10(__C.LR)))))**(1/300)
 __C.LR_DECAY_START = -1  # when training epoch is more than it, the learning rate will be begin to decay
 __C.WEIGHT_DECAY = 1e-3
 # __C.WEIGHT_DECAY = 1e-4
