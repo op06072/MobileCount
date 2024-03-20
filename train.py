@@ -9,7 +9,6 @@ from config import cfg
 # from trainer import Trainer
 # from trainer_CMTL import Trainer_CMTL
 
-
 if __name__ == '__main__':
     # freeze_support()
 
@@ -59,5 +58,5 @@ if __name__ == '__main__':
     # ------------Start Training------------
     pwd = os.path.split(os.path.realpath(__file__))[0]
     cc_trainer = Trainer(loading_data, cfg_data, pwd)
-    cc_trainer.preload()
+    # cc_trainer.preload()
     cc_trainer.forward()

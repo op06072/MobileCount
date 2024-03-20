@@ -1,6 +1,7 @@
 from torch import optim
 from torch.autograd import Variable
 from torch.optim.lr_scheduler import StepLR
+from torch.multiprocessing import Manager
 
 from config import cfg
 from misc.utils import *
@@ -36,10 +37,18 @@ class Trainer:
         if cfg.PRE_GCC:
             self.net.load_state_dict(torch.load(cfg.PRE_GCC_MODEL))
 
-        self.train_loader, self.val_loader, self.restore_transform = dataloader()
+        if self.data_mode in ['SHHA', 'SHHB', 'QNRF', 'UCF50']:
+            if cfg.DATA_WORKERS != 0:
+                self.manager = Manager()
+                datas = self.manager.dict()
+            else:
+                datas = {}
+            self.train_loader, self.val_loader, self.restore_transform = dataloader(datas)
+        else:
+            self.train_loader, self.val_loader, self.restore_transform = dataloader()
 
-        self.train_datas = []
-        self.val_datas = []
+        # self.train_datas = datas[0]
+        # self.val_datas = datas[1]
 
     def preload(self):
         if self.data_mode in ['SHHA', 'SHHB', 'QNRF', 'UCF50']:
@@ -89,7 +98,7 @@ class Trainer:
 
     def train(self):  # training for all datasets
         self.net.train()
-        for i, data in enumerate(self.train_datas):
+        for i, data in enumerate(self.train_loader, 0):
             self.timer['iter time'].tic()
             img, gt_map = data
             img = Variable(img).to(self.device)
@@ -126,7 +135,7 @@ class Trainer:
         time_sampe = 0
         step = 0
 
-        for vi, data in enumerate(self.val_datas):
+        for vi, data in enumerate(self.val_loader, 0):
             img, gt_map = data
 
             with torch.no_grad():

@@ -19,9 +19,16 @@ class SHHA(data.Dataset):
         self.img_transform = img_transform
         self.gt_transform = gt_transform
 
+    def setdict(self, datas):
+        self.datas = datas
+
     def __getitem__(self, index):
         fname = self.data_files[index]
-        img, den = self.read_image_and_gt(fname)
+        if fname not in self.datas:
+            img, den = self.read_image_and_gt(fname)
+            self.datas[fname] = [img, den]
+        else:
+            img, den = self.datas[fname]
         if self.main_transform is not None:
             img, den = self.main_transform(img, den)
         if self.img_transform is not None:

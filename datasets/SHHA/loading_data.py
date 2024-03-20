@@ -85,7 +85,7 @@ def SHHA_collate(batch):
     raise TypeError((error_msg.format(type(batch[0]))))
 
 
-def loading_data():
+def loading_data(datas):
     mean_std = cfg_data.MEAN_STD
     log_para = cfg_data.LOG_PARA
     factor = cfg_data.LABEL_FACTOR
@@ -111,16 +111,17 @@ def loading_data():
         os.path.realpath(cfg_data.DATA_PATH) + '/train_data', 'train',
         main_transform=train_main_transform, img_transform=img_transform, gt_transform=gt_transform
     )
+    train_set.setdict(datas)
     train_loader = None
     if cfg_data.TRAIN_BATCH_SIZE == 1:
         train_loader = DataLoader(
-            train_set, batch_size=1, num_workers=8,
+            train_set, batch_size=1, num_workers=0,
             shuffle=True, drop_last=True, prefetch_factor=3
         )
     elif cfg_data.TRAIN_BATCH_SIZE > 1:
         train_loader = DataLoader(
-            train_set, batch_size=cfg_data.TRAIN_BATCH_SIZE, num_workers=8,
-            collate_fn=SHHA_collate, shuffle=True, drop_last=True, prefetch_factor=3
+            train_set, batch_size=cfg_data.TRAIN_BATCH_SIZE, num_workers=0,
+            collate_fn=SHHA_collate, shuffle=True, drop_last=True
         )
 
     val_set = SHHA(
@@ -128,9 +129,10 @@ def loading_data():
         'test', main_transform=None,
         img_transform=img_transform, gt_transform=gt_transform
     )
+    val_set.setdict(datas)
     val_loader = DataLoader(
-        val_set, batch_size=cfg_data.VAL_BATCH_SIZE, num_workers=8,
-        shuffle=True, drop_last=False, prefetch_factor=3
+        val_set, batch_size=cfg_data.VAL_BATCH_SIZE, num_workers=0,
+        shuffle=True, drop_last=False
     )
 
     return train_loader, val_loader, restore_transform
