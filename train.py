@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import os
+import platform
+if platform.system() == 'Darwin':
+    os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+
 import torch
 import numpy as np
 
