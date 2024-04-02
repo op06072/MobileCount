@@ -53,7 +53,7 @@ def SHHA_collate(batch):
     # @GJY 
     r"""Puts each data field into a tensor with outer dimension batch size"""
 
-    transposed = zip(*batch)  # imgs and dens
+    transposed = list(zip(*batch))  # imgs and dens
     imgs, dens = [transposed[0], transposed[1]]
 
     error_msg = "batch must contain tensors; found {}"
@@ -93,10 +93,12 @@ def loading_data(
         own_transforms.RandomHorizontallyFlip()
     ])
     img_transform = standard_transforms.Compose([
+        standard_transforms.Resize(cfg_data.STD_SIZE),
         standard_transforms.ToTensor(),
         standard_transforms.Normalize(*mean_std)
     ])
     gt_transform = standard_transforms.Compose([
+        standard_transforms.Resize(cfg_data.STD_SIZE),
         own_transforms.LabelNormalize(log_para)
     ])
     restore_transform = standard_transforms.Compose([
