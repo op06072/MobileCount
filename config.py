@@ -9,8 +9,8 @@ cfg = __C
 
 # ------------------------------TRAIN------------------------
 __C.SEED = 3035  # random seed,  for reporduction
-__C.DATASET = 'SHHA'  # dataset selection: SHHA, SHHB, UCF50, QNRF, WE
-__C.DATA_WORKERS = 8
+__C.DATASET = 'UCF50'  # dataset selection: SHHA, SHHB, UCF50, QNRF, WE
+__C.DATA_WORKERS = 0
 
 if __C.DATASET == 'UCF50':  # only for UCF50
     from datasets.UCF50.setting import cfg_data
@@ -37,16 +37,18 @@ __C.GPU_ID = [0]  # sigle gpu: [0], [1] ...; multi gpus: [0,1]
 
 # learning rate settings
 # __C.LR = 1e-4  # learning rate
-__C.LR = 6e-4
+__C.LR = 20e-4
 # __C.LR_DECAY = 0.995  # decay rate
 # __C.LR_DECAY = 0.9927 # 2e-4
 # __C.LR_DECAY = 0.9905  # 4e-4
-__C.LR_DECAY = (0.22/(__C.LR*(10**math.floor(math.log10(__C.LR)))))**(1/300)
-__C.LR_DECAY_START = -1  # when training epoch is more than it, the learning rate will be begin to decay
+__C.LR_DECAY = (0.18/(__C.LR*(10**-math.floor(math.log10(__C.LR)))))**(1/300)
+__C.LR_DECAY_START = -1  # when training epoch is more than it, the learning rate will be begun to decay
+__C.OPTIM = 'nadam'
+__C.SCHEDULER = 'custom_annealing'
 __C.WEIGHT_DECAY = 1e-3
 # __C.WEIGHT_DECAY = 1e-4
 __C.NUM_EPOCH_LR_DECAY = 1  # decay frequency
-__C.MAX_EPOCH = 500
+__C.MAX_EPOCH = 1000
 
 # print 
 __C.PRINT_FREQ = 10
