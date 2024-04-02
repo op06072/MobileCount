@@ -2,20 +2,21 @@ from __future__ import annotations
 
 from torch import optim
 from torch.autograd import Variable
-from torch.optim.lr_scheduler import StepLR
 from torch.multiprocessing import Manager
+from torch.optim.lr_scheduler import StepLR, CosineAnnealingWarmRestarts
 
 from config import cfg
 from misc.utils import *
 from models.CC import CrowdCounter
 
 from PIL.Image import Image
+from typing import Any, List
 from datasets import DataDict
 from easydict import EasyDict
 from misc.transforms import Compose
 from torch.utils.data import DataLoader
 from multiprocessing.managers import DictProxy
-from typing import Any, List, AnyStr
+from models.layer import CyclicLRWithRestarts, CosineAnnealingWarmupRestarts
 
 
 class Trainer:
@@ -37,10 +38,32 @@ class Trainer:
 
         self.net_name = cfg.NET
         self.net = CrowdCounter(cfg.GPU_ID, self.net_name).to(self.device)
-        # self.optimizer = optim.Adam(self.net.parameters(), lr=cfg.LR, weight_decay=cfg.WEIGHT_DECAY)
-        self.optimizer = optim.NAdam(self.net.parameters(), lr=cfg.LR, weight_decay=cfg.WEIGHT_DECAY)
+
+        optimizer = cfg.OPTIM.lower()
+        stepper = cfg.SCHEDULER.lower()
+        if optimizer == 'adam':
+            self.optimizer = optim.Adam(self.net.parameters(), lr=cfg.LR, weight_decay=cfg.WEIGHT_DECAY)
+        elif optimizer == 'nadam':
+            self.optimizer = optim.NAdam(self.net.parameters(), lr=cfg.LR, weight_decay=cfg.WEIGHT_DECAY)
+        elif optimizer == 'adamw':
+            self.optimizer = optim.AdamW(self.net.parameters(), lr=cfg.LR, weight_decay=cfg.WEIGHT_DECAY)
+        elif optimizer == 'sgd':
+            self.optimizer = optim.SGD(self.net.parameters(), cfg.LR, momentum=0.95, weight_decay=cfg.WEIGHT_DECAY)
         # self.optimizer = optim.SGD(self.net.parameters(), cfg.LR, momentum=0.95,weight_decay=5e-4)
-        self.scheduler = StepLR(self.optimizer, step_size=cfg.NUM_EPOCH_LR_DECAY, gamma=cfg.LR_DECAY)
+        if stepper == 'annealing':
+            # self.scheduler = CyclicLRWithRestarts(
+            #     self.optimizer, cfg_data.TRAIN_BATCH_SIZE, cfg.MAX_EPOCH, restart_period=50, t_mult=1.3
+            # )
+            self.scheduler = CosineAnnealingWarmRestarts(
+                self.optimizer, 200, 2
+            )
+        elif stepper == 'custom_annealing':
+            self.scheduler = CosineAnnealingWarmupRestarts(
+                self.optimizer, 200, 2,
+                warmup_steps=50, gamma=0.5, min_lr=cfg.LR/1e4, max_lr=cfg.LR
+            )
+        else:
+            self.scheduler = StepLR(self.optimizer, step_size=cfg.NUM_EPOCH_LR_DECAY, gamma=cfg.LR_DECAY)
 
         self.train_record = {'best_mae': 1e20, 'best_mse': 1e20, 'best_model_name': ''}
         self.timer = {'iter time': Timer(), 'train time': Timer(), 'val time': Timer()}
