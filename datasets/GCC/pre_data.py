@@ -1,10 +1,10 @@
-from scipy import io as sio
-import PIL.Image as Image
-import numpy as np
 import os
-from scipy.ndimage.filters import gaussian_filter
-import scipy
 import pdb
+import scipy
+import numpy as np
+import PIL.Image as Image
+from scipy import io as sio
+from scipy.ndimage.filters import gaussian_filter
 
 dataRoot = './data'
 
