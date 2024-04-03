@@ -67,6 +67,9 @@ if __name__ == '__main__':
     elif data_mode == 'GCC':
         from datasets.GCC.loading_data import loading_data as data_loader
         from datasets.GCC.setting import cfg_data
+    elif data_mode == 'MALL':
+        from datasets.MALL.loading_data import loading_data as data_loader
+        from datasets.MALL.setting import cfg_data
 
     # ------------Prepare Trainer------------
     net = cfg.NET

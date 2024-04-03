@@ -9,7 +9,7 @@ cfg = __C
 
 # ------------------------------TRAIN------------------------
 __C.SEED = 3035  # random seed,  for reporduction
-__C.DATASET = 'UCF50'  # dataset selection: SHHA, SHHB, UCF50, QNRF, WE
+__C.DATASET = 'MALL'  # dataset selection: SHHA, SHHB, UCF50, QNRF, WE
 __C.DATA_WORKERS = 8 # macOS: 8, Windows: 0
 
 if __C.DATASET == 'UCF50':  # only for UCF50
