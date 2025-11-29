@@ -17,16 +17,12 @@ from misc.transforms import Compose
 from torch.utils.data import DataLoader
 from multiprocessing.managers import DictProxy
 from models.layer import CyclicLRWithRestarts, CosineAnnealingWarmupRestarts
+import train
+from iafoule.metrics import get_metrics
 
 
 class Trainer:
-    def __init__(
-            self,
-            dataloader: Any,
-            cfg_data: EasyDict,
-            pwd: str | bytes
-    ):
-
+    def __init__(self, dataloader: Any, cfg_data: EasyDict, pwd: str | bytes):
         self.cfg_data = cfg_data
 
         self.data_mode = cfg.DATASET
@@ -41,33 +37,51 @@ class Trainer:
 
         optimizer = cfg.OPTIM.lower()
         stepper = cfg.SCHEDULER.lower()
-        if optimizer == 'adam':
-            self.optimizer = optim.Adam(self.net.parameters(), lr=cfg.LR, weight_decay=cfg.WEIGHT_DECAY)
-        elif optimizer == 'nadam':
-            self.optimizer = optim.NAdam(self.net.parameters(), lr=cfg.LR, weight_decay=cfg.WEIGHT_DECAY)
-        elif optimizer == 'adamw':
-            self.optimizer = optim.AdamW(self.net.parameters(), lr=cfg.LR, weight_decay=cfg.WEIGHT_DECAY)
-        elif optimizer == 'sgd':
-            self.optimizer = optim.SGD(self.net.parameters(), cfg.LR, momentum=0.95, weight_decay=cfg.WEIGHT_DECAY)
+        if optimizer == "adam":
+            self.optimizer = optim.Adam(
+                self.net.parameters(), lr=cfg.LR, weight_decay=cfg.WEIGHT_DECAY
+            )
+        elif optimizer == "nadam":
+            self.optimizer = optim.NAdam(
+                self.net.parameters(), lr=cfg.LR, weight_decay=cfg.WEIGHT_DECAY
+            )
+        elif optimizer == "adamw":
+            self.optimizer = optim.AdamW(
+                self.net.parameters(), lr=cfg.LR, weight_decay=cfg.WEIGHT_DECAY
+            )
+        elif optimizer == "sgd":
+            self.optimizer = optim.SGD(
+                self.net.parameters(),
+                cfg.LR,
+                momentum=0.95,
+                weight_decay=cfg.WEIGHT_DECAY,
+            )
         # self.optimizer = optim.SGD(self.net.parameters(), cfg.LR, momentum=0.95,weight_decay=5e-4)
-        if stepper == 'annealing':
+        if stepper == "annealing":
             # self.scheduler = CyclicLRWithRestarts(
             #     self.optimizer, cfg_data.TRAIN_BATCH_SIZE, cfg.MAX_EPOCH, restart_period=50, t_mult=1.3
             # )
-            self.scheduler = CosineAnnealingWarmRestarts(
-                self.optimizer, 200, 2
-            )
-        elif stepper == 'custom_annealing':
+            self.scheduler = CosineAnnealingWarmRestarts(self.optimizer, 200, 2)
+        elif stepper == "custom_annealing":
             self.scheduler = CosineAnnealingWarmupRestarts(
-                self.optimizer, 200, 2,
-                warmup_steps=50, gamma=0.5, min_lr=cfg.LR/1e4, max_lr=cfg.LR
+                self.optimizer,
+                200,
+                2,
+                warmup_steps=50,
+                gamma=0.5,
+                min_lr=cfg.LR / 1e4,
+                max_lr=cfg.LR,
             )
         else:
-            self.scheduler = StepLR(self.optimizer, step_size=cfg.NUM_EPOCH_LR_DECAY, gamma=cfg.LR_DECAY)
+            self.scheduler = StepLR(
+                self.optimizer, step_size=cfg.NUM_EPOCH_LR_DECAY, gamma=cfg.LR_DECAY
+            )
 
-        self.train_record = {'best_mae': 1e20, 'best_mse': 1e20, 'best_model_name': ''}
-        self.timer = {'iter time': Timer(), 'train time': Timer(), 'val time': Timer()}
-        self.writer, self.log_txt = logger(self.exp_path, self.exp_name, self.pwd, 'exp')
+        self.train_record = {"best_mae": 1e20, "best_mse": 1e20, "best_model_name": ""}
+        self.timer = {"iter time": Timer(), "train time": Timer(), "val time": Timer()}
+        self.writer, self.log_txt = logger(
+            self.exp_path, self.exp_name, self.pwd, "exp"
+        )
 
         self.i_tb = 0
         self.epoch = -1
@@ -75,10 +89,10 @@ class Trainer:
         if cfg.PRE_GCC:
             self.net.load_state_dict(torch.load(cfg.PRE_GCC_MODEL))
 
-        self.train_loader: DataLoader[Any]  | None
+        self.train_loader: DataLoader[Any] | None
         self.val_loader: DataLoader[Any]
         self.restore_transform: Compose
-        if self.data_mode in ['SHHA', 'SHHB', 'QNRF', 'UCF50']:
+        if self.data_mode in ["SHHA", "SHHB", "QNRF", "UCF50"]:
             if cfg.DATA_WORKERS == 0:
                 datas: DictProxy[str, List[Image]] | DataDict = {}
             else:
@@ -91,114 +105,154 @@ class Trainer:
             self.train_loader, self.val_loader, self.restore_transform = dataloader()
 
     def forward(self):
-
         # self.validate_V1()
         for epoch in range(cfg.MAX_EPOCH):
             self.epoch = epoch
             if epoch > cfg.LR_DECAY_START:
                 self.scheduler.step()
 
-            # training    
-            self.timer['train time'].tic()
+            # training
+            self.timer["train time"].tic()
             self.train()
-            self.timer['train time'].toc(average=False)
+            self.timer["train time"].toc(average=False)
 
-            print('train time: {:.2f}s'.format(self.timer['train time'].diff))
-            print('=' * 20)
+            print("train time: {:.2f}s".format(self.timer["train time"].diff))
+            print("=" * 20)
 
             # validation
             if epoch % cfg.VAL_FREQ == 0 or epoch > cfg.VAL_DENSE_START:
-                self.timer['val time'].tic()
-                if self.data_mode in ['SHHA', 'SHHB', 'QNRF', 'UCF50', 'MALL']:
-                    self.validate_V1()
-                elif self.data_mode == 'WE':
+                self.timer["val time"].tic()
+                if self.data_mode == "WE":
                     self.validate_V2()
-                elif self.data_mode == 'GCC':
+                elif self.data_mode == "GCC":
                     self.validate_V3()
-                self.timer['val time'].toc(average=False)
-                print('val time: {:.2f}s'.format(self.timer['val time'].diff))
+                else:
+                    self.validate_V1()
+                self.timer["val time"].toc(average=False)
+                print("val time: {:.2f}s".format(self.timer["val time"].diff))
 
     def train(self):  # training for all datasets
+        train_losses = AverageMeter()
         self.net.train()
         for i, data in enumerate(self.train_loader, 0):
-            self.timer['iter time'].tic()
-            img, gt_map = data
-            img = Variable(img).to(self.device)
-            gt_map = Variable(gt_map).to(self.device)
+            self.timer["iter time"].tic()
+            img = Variable(data[0]).to(self.device)
+            gt_map = Variable(data[1]).to(self.device)
+            if len(data) == 3:
+                sample_weight = Variable(data[2]).to(self.device)
 
             self.optimizer.zero_grad()
-            pred_map = self.net(img, gt_map)
+            pred_map = self.net(img, gt_map, sample_weight)
             loss = self.net.loss
+            if isinstance(self.net.lc_loss, int):
+                lc_loss = self.net.lc_loss
+            else:
+                lc_loss = self.net.lc_loss.item()
             loss.backward()
             self.optimizer.step()
 
             if (i + 1) % cfg.PRINT_FREQ == 0:
                 self.i_tb += 1
-                self.writer.add_scalar('train_loss', loss.item(), self.i_tb)
-                self.timer['iter time'].toc(average=False)
-                print('[ep %d][it %d][loss %.4f][lr %.4f][%.2fs]' % (
-                    self.epoch + 1, i + 1, loss.item(),
-                    self.optimizer.param_groups[0]['lr'] * 10000,
-                    self.timer['iter time'].diff
-                ))
-                print('        [cnt: gt: %.1f pred: %.2f]' % (
-                    gt_map[0].sum().data / self.cfg_data.LOG_PARA,
-                    pred_map[0].sum().data / self.cfg_data.LOG_PARA
-                ))
+                self.writer.add_scalar("train_loss", loss.item(), self.i_tb)
+                self.timer["iter time"].toc(average=False)
+                print(
+                    "[ep %d][it %d][loss %.4f][lc_loss %.4f][lr %.4f][%.2fs]"
+                    % (
+                        self.epoch + 1,
+                        i + 1,
+                        loss.item(),
+                        lc_loss,
+                        self.optimizer.param_groups[0]["lr"] * 10000,
+                        self.timer["iter time"].diff,
+                    )
+                )
+                print(
+                    "        [cnt: gt: %.1f pred: %.2f]"
+                    % (
+                        gt_map[0].sum().data / self.cfg_data.LOG_PARA,
+                        pred_map[0].sum().data / self.cfg_data.LOG_PARA,
+                    )
+                )
+                train_losses.update(loss)
+            train_loss = train_losses.avg
+            self.writer.add_scalar('train_loss', train_loss, self.epoch + 1)
 
     def validate_V1(self):  # validate_V1 for SHHA, SHHB, UCF-QNRF, UCF50
-
         self.net.eval()
 
         losses = AverageMeter()
         maes = AverageMeter()
+        mapes = AverageMeter()
         mses = AverageMeter()
 
         time_sampe = 0
         step = 0
 
         for vi, data in enumerate(self.val_loader, 0):
-            img, gt_map = data
-
             with torch.no_grad():
-                img = Variable(img).to(self.device)
-                gt_map = Variable(gt_map).to(self.device)
+                sample_weight = None
+                img = Variable(data[0]).to(self.device)
+                gt_map = Variable(data[1]).to(self.device)
+                if len(data) == 3:
+                    sample_weight = Variable(data[2]).to(self.device)
 
-                pred_map = self.net.forward(img, gt_map)
+                pred_map = self.net.forward(img, gt_map, sample_weight)
 
                 step = step + 1
                 time_start1 = time.time()
                 test_map = self.net.test_forward(img)
                 time_end1 = time.time()
-                time_sampe = time_sampe + (time_end1 - time_start1)
+                time_sampe += (time_end1 - time_start1)
 
-                pred_map = pred_map.data.to(torch.device("cpu")).numpy()
-                gt_map = gt_map.data.to(torch.device("cpu")).numpy()
+                pred_map = pred_map.detach().cpu().numpy()
+                gt_map = gt_map.data.detach().cpu().numpy()
 
-                pred_cnt = np.sum(pred_map) / self.cfg_data.LOG_PARA
-                gt_count = np.sum(gt_map) / self.cfg_data.LOG_PARA
+                for i_img in range(pred_map.shape[0]):
+                    losses.update(self.net.loss.item())
 
-                losses.update(self.net.loss.item())
-                maes.update(abs(gt_count - pred_cnt))
-                mses.update((gt_count - pred_cnt) * (gt_count - pred_cnt))
-                if vi == 0:
-                    vis_results(self.exp_name, self.epoch, self.writer, self.restore_transform, img, pred_map, gt_map)
+                    metrics = get_metrics(
+                        pred_map[i_img].squeeze() / self.cfg_data.LOG_PARA,
+                        gt_map[i_img] / self.cfg_data.LOG_PARA,
+                    )
+
+                    maes.update(metrics['absolute_error'])
+                    mapes.update(metrics['absolute_percentage_error'])
+                    mses.update(metrics['squared_error'])
+
+                if vi == -1:
+                    vis_results(
+                        self.exp_name,
+                        self.epoch,
+                        self.writer,
+                        self.restore_transform,
+                        img,
+                        pred_map,
+                        gt_map,
+                    )
 
         mae = maes.avg
+        mape = mapes.avg
         mse = np.sqrt(mses.avg)
         loss = losses.avg
 
-        self.writer.add_scalar('val_loss', loss, self.epoch + 1)
-        self.writer.add_scalar('mae', mae, self.epoch + 1)
-        self.writer.add_scalar('mse', mse, self.epoch + 1)
+        self.writer.add_scalar("val_loss", loss, self.epoch + 1)
+        self.writer.add_scalar("mae", mae, self.epoch + 1)
+        self.writer.add_scalar("mape", mape, self.epoch + 1)
+        self.writer.add_scalar("rmse", mse, self.epoch + 1)
 
-        self.train_record = update_model(self.net, self.epoch, self.exp_path, self.exp_name, [mae, mse, loss],
-                                         self.train_record, self.log_txt)
+        self.train_record = update_model(
+            self.net,
+            self.epoch,
+            self.exp_path,
+            self.exp_name,
+            [mae, mse, loss],
+            self.train_record,
+            self.log_txt,
+        )
         print_summary(self.exp_name, [mae, mse, loss], self.train_record)
-        print('\nForward Time: %fms' % (time_sampe * 1000 / step))
+        print("\nForward Time: %fms" % (time_sampe * 1000 / step))
 
     def validate_V2(self):  # validate_V2 for WE
-
         self.net.eval()
 
         losses = AverageCategoryMeter(5)
@@ -207,12 +261,16 @@ class Trainer:
         roi_mask = []
         from datasets.WE.setting import cfg_data
         from scipy import io as sio  # type: ignore
+
         for val_folder in cfg_data.VAL_FOLDER:
-            roi_mask.append(sio.loadmat(os.path.join(cfg_data.DATA_PATH, 'test', val_folder + '_roi.mat'))['BW'])
+            roi_mask.append(
+                sio.loadmat(
+                    os.path.join(cfg_data.DATA_PATH, "test", val_folder + "_roi.mat")
+                )["BW"]
+            )
 
         for i_sub, i_loader in enumerate(self.val_loader, 0):
-
-            mask = roi_mask[i_sub]
+            # mask = roi_mask[i_sub]
             for vi, data in enumerate(i_loader, 0):
                 img, gt_map = data
 
@@ -233,29 +291,40 @@ class Trainer:
                         maes.update(abs(gt_count - pred_cnt), i_sub)
                     if vi == 0:
                         vis_results(
-                            self.exp_name, self.epoch, self.writer,
-                            self.restore_transform, img, pred_map, gt_map
+                            self.exp_name,
+                            self.epoch,
+                            self.writer,
+                            self.restore_transform,
+                            img,
+                            pred_map,
+                            gt_map,
                         )
 
         mae = np.average(maes.avg)
         loss = np.average(losses.avg)
 
-        self.writer.add_scalar('val_loss', loss, self.epoch + 1)
-        self.writer.add_scalar('mae', mae, self.epoch + 1)
-        self.writer.add_scalar('mae_s1', maes.avg[0], self.epoch + 1)
-        self.writer.add_scalar('mae_s2', maes.avg[1], self.epoch + 1)
-        self.writer.add_scalar('mae_s3', maes.avg[2], self.epoch + 1)
-        self.writer.add_scalar('mae_s4', maes.avg[3], self.epoch + 1)
-        self.writer.add_scalar('mae_s5', maes.avg[4], self.epoch + 1)
+        self.writer.add_scalar("val_loss", loss, self.epoch + 1)
+        self.writer.add_scalar("mae", mae, self.epoch + 1)
+        self.writer.add_scalar("mae_s1", maes.avg[0], self.epoch + 1)
+        self.writer.add_scalar("mae_s2", maes.avg[1], self.epoch + 1)
+        self.writer.add_scalar("mae_s3", maes.avg[2], self.epoch + 1)
+        self.writer.add_scalar("mae_s4", maes.avg[3], self.epoch + 1)
+        self.writer.add_scalar("mae_s5", maes.avg[4], self.epoch + 1)
 
         self.train_record = update_model(
-            self.net, self.epoch, self.exp_path, self.exp_name,
-            [mae, 0, loss], self.train_record, self.log_txt
+            self.net,
+            self.epoch,
+            self.exp_path,
+            self.exp_name,
+            [mae, 0, loss],
+            self.train_record,
+            self.log_txt,
         )
-        print_WE_summary(self.log_txt, self.epoch, [mae, 0, loss], self.train_record, maes)
+        print_WE_summary(
+            self.log_txt, self.epoch, [mae, 0, loss], self.train_record, maes
+        )
 
     def validate_V3(self):  # validate_V3 for GCC
-
         self.net.eval()
 
         losses = AverageMeter()
@@ -263,14 +332,14 @@ class Trainer:
         mses = AverageMeter()
 
         c_maes = {
-            'level': AverageCategoryMeter(9),
-            'time': AverageCategoryMeter(8),
-            'weather': AverageCategoryMeter(7)
+            "level": AverageCategoryMeter(9),
+            "time": AverageCategoryMeter(8),
+            "weather": AverageCategoryMeter(7),
         }
         c_mses = {
-            'level': AverageCategoryMeter(9),
-            'time': AverageCategoryMeter(8),
-            'weather': AverageCategoryMeter(7)
+            "level": AverageCategoryMeter(9),
+            "time": AverageCategoryMeter(8),
+            "weather": AverageCategoryMeter(7),
         }
 
         for vi, data in enumerate(self.val_loader, 0):
@@ -313,16 +382,25 @@ class Trainer:
         mae = maes.avg
         mse = np.sqrt(mses.avg)
 
-        self.writer.add_scalar('val_loss', loss, self.epoch + 1)
-        self.writer.add_scalar('mae', mae, self.epoch + 1)
-        self.writer.add_scalar('mse', mse, self.epoch + 1)
+        self.writer.add_scalar("val_loss", loss, self.epoch + 1)
+        self.writer.add_scalar("mae", mae, self.epoch + 1)
+        self.writer.add_scalar("mse", mse, self.epoch + 1)
 
         self.train_record = update_model(
-            self.net, self.epoch, self.exp_path, self.exp_name,
-            [mae, mse, loss], self.train_record, self.log_txt
+            self.net,
+            self.epoch,
+            self.exp_path,
+            self.exp_name,
+            [mae, mse, loss],
+            self.train_record,
+            self.log_txt,
         )
 
         print_GCC_summary(
-            self.log_txt, self.epoch, [mae, mse, loss],
-            self.train_record, c_maes, c_mses
+            self.log_txt,
+            self.epoch,
+            [mae, mse, loss],
+            self.train_record,
+            c_maes,
+            c_mses,
         )

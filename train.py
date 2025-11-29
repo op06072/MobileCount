@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import os
 import platform
-if platform.system() == 'Darwin':
-    os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+
+if platform.system() == "Darwin":
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
 import torch
 import numpy as np
@@ -22,7 +23,7 @@ from typing import Callable, Any, Tuple, List, AnyStr
 # from trainer import Trainer
 # from trainer_CMTL import Trainer_CMTL
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # freeze_support()
 
     # ------------prepare environment------------
@@ -43,33 +44,40 @@ if __name__ == '__main__':
     if cfg.GPU_DEVICE == "cuda":
         torch.backends.cudnn.benchmark = True
 
-    data_loader: Callable[
-        [DataDict | DictProxy[str, List[Image]], int], Tuple[DataLoader[Any] | None, DataLoader[Any], Compose]
-    ] | Callable[[], Tuple[DataLoader[Any] | None, DataLoader[Any], Compose]]
+    data_loader: (
+        Callable[
+            [DataDict | DictProxy[str, List[Image]], int],
+            Tuple[DataLoader[Any] | None, DataLoader[Any], Compose],
+        ]
+        | Callable[[], Tuple[DataLoader[Any] | None, DataLoader[Any], Compose]]
+    )
 
     # ------------prepare data loader------------
     data_mode = cfg.DATASET
-    if data_mode == 'SHHA':
+    if data_mode == "SHHA":
         from datasets.SHHA.loading_data import loading_data as data_loader
         from datasets.SHHA.setting import cfg_data
-    elif data_mode == 'SHHB':
+    elif data_mode == "SHHB":
         from datasets.SHHB.loading_data import loading_data as data_loader
         from datasets.SHHB.setting import cfg_data
-    elif data_mode == 'QNRF':
+    elif data_mode == "QNRF":
         from datasets.QNRF.loading_data import loading_data as data_loader
         from datasets.QNRF.setting import cfg_data
-    elif data_mode == 'UCF50':
+    elif data_mode == "UCF50":
         from datasets.UCF50.loading_data import loading_data as data_loader
         from datasets.UCF50.setting import cfg_data
-    elif data_mode == 'WE':
+    elif data_mode == "WE":
         from datasets.WE.loading_data import loading_data as data_loader
         from datasets.WE.setting import cfg_data
-    elif data_mode == 'GCC':
+    elif data_mode == "GCC":
         from datasets.GCC.loading_data import loading_data as data_loader
         from datasets.GCC.setting import cfg_data
-    elif data_mode == 'MALL':
+    elif data_mode == "MALL":
         from datasets.MALL.loading_data import loading_data as data_loader
         from datasets.MALL.setting import cfg_data
+    elif data_mode == "MULTIPLE":
+        from datasets.MULTIPLE.loading_data import loading_data as data_loader
+        from datasets.MULTIPLE.setting import cfg_data
 
     # ------------Prepare Trainer------------
     net = cfg.NET

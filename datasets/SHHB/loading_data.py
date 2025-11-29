@@ -34,7 +34,7 @@ def loading_data(
     ])
 
     train_set = SHHB(
-        cfg_data.DATA_PATH+'/train', main_transform=train_main_transform,
+        cfg_data.DATA_PATH+'/train_data', main_transform=train_main_transform,
         img_transform=img_transform, gt_transform=gt_transform
     )
     train_set.setdict(datas)
@@ -45,7 +45,7 @@ def loading_data(
     
 
     val_set = SHHB(
-        cfg_data.DATA_PATH+'/test', main_transform=None,
+        cfg_data.DATA_PATH+'/test_data', main_transform=None,
         img_transform=img_transform, gt_transform=gt_transform
     )
     val_set.setdict(datas)

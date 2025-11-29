@@ -8,31 +8,65 @@ class CrowdCounter(nn.Module):
     def __init__(self, gpus, model_name):
         super(CrowdCounter, self).__init__()
 
-        if model_name == 'MobileCountx1_25':
+        if model_name == "MobileCountx1_25":
             from .MobileCountx1_25 import MobileCount as net
-        elif model_name == 'MobileCountx2':
+        elif model_name == "MobileCountx2":
             from .MobileCountx2 import MobileCount as net
-        elif model_name == 'LSANet':
+        elif model_name == "LSANet":
             from .LSANet import LSANet as net
         else:
             from .MobileCount import MobileCount as net
 
-        if model_name == 'LSANet':
+        self.cfg = cfg
+
+        if model_name == "LSANet":
             self.CCN = net(bn=cfg.NET_BN, act=cfg.NET_ACT)
             net.apply(self, fn=self.init_weights)
         else:
             self.CCN = net()
 
-        if len(gpus) > 1:
-            self.CCN = torch.nn.DataParallel(self.CCN, device_ids=gpus).to(cfg.DEVICE)
-        else:
-            self.CCN = self.CCN.to(cfg.DEVICE)
+        self.dev = cfg.DEVICE
+        self.dev_acc = self.dev != torch.device("cpu")
 
-        if model_name == 'LSANet':
-            # self.loss_mse_fn = NormalizedEuclideanLoss().to(cfg.DEVICE)
-            self.loss_mse_fn = LSALoss().to(cfg.DEVICE)
+        if len(gpus) > 1:
+            self.CCN = torch.nn.DataParallel(self.CCN, device_ids=gpus)
         else:
-            self.loss_mse_fn = nn.MSELoss().to(cfg.DEVICE)
+            self.CCN = self.CCN
+        if self.dev_acc:
+            self.CCN = self.CCN.to(self.dev)
+
+        if model_name == "LSANet":
+            # self.loss_mse_fn = NormalizedEuclideanLoss().to(cfg.DEVICE)
+            self.loss_mse_fn = LSALoss()
+        else:
+            self.loss_mse_fn = nn.MSELoss(reduction="none")
+        if self.dev_acc:
+            self.loss_mse_fn = self.loss_mse_fn.to(self.dev)
+
+    def compute_lc_loss(self, output, target, sizes=(1, 2, 4)) -> torch.Tensor:
+        # criterion_L1 = torch.nn.L1Loss(reduction=self.cfg.L1_LOSS_REDUCTION)
+        # self.cfg.L1_LOSS_REDUCTION not used anymore
+        criterion_L1 = torch.nn.L1Loss(reduction="none")
+        if self.dev_acc:
+            criterion_L1 = criterion_L1.to(self.dev)
+        lc_loss = None
+        for s in sizes:
+            pool = torch.nn.AdaptiveAvgPool2d(s)
+            if self.dev_acc:
+                pool = pool.to(self.dev)
+            est = pool(output.unsqueeze(0))
+            gt = pool(target.unsqueeze(0))
+            c = criterion_L1(est, gt).squeeze(0)
+            if c.ndim == 3:
+                c_mean = c.mean(dim=(1, 2)) / s**2
+            else:
+                c_mean = c.mean() / s**2
+            if lc_loss is not None:
+                lc_loss += c_mean
+                # lc_loss += criterion_L1(est, gt) / s**2
+            else:
+                lc_loss = c_mean
+        return lc_loss
 
     @staticmethod
     def init_weights(m):
@@ -46,13 +80,37 @@ class CrowdCounter(nn.Module):
     def f_loss(self):
         return self.loss_mse
 
-    def forward(self, img, gt_map):
+    def forward(self, img, gt_map=None, sample_weight=None):
         density_map = self.CCN(img)
-        self.loss_mse = self.build_loss(density_map.squeeze(), gt_map.squeeze())
+        if gt_map is not None:
+            self.loss_mse = self.build_loss(
+                density_map.squeeze(), gt_map.squeeze(), sample_weight
+            )
         return density_map
 
-    def build_loss(self, density_map, gt_data):
+    def build_loss(self, density_map, gt_data, sample_weight=None):
         loss_mse = self.loss_mse_fn(density_map, gt_data)
+        if loss_mse.dim() == 3:
+            loss_mse = torch.mean(loss_mse, dim=(1, 2))
+        else:
+            loss_mse = torch.mean(loss_mse)
+        self.lc_loss = 0
+        computing_lc_loss = True
+        if self.dev.type == "mps":
+            h, w = density_map.shape[-2:]
+            if any(h % s != 0 or w % s != 0 for s in self.cfg.CUSTOM_LOSS_SIZES):
+                computing_lc_loss = False
+        if self.cfg.CUSTOM_LOSS and computing_lc_loss:
+            lc_loss = self.compute_lc_loss(
+                density_map, gt_data, sizes=self.cfg.CUSTOM_LOSS_SIZES
+            )
+            self.lc_loss = lc_loss.sum()
+            loss_mse += self.cfg.CUSTOM_LOSS_LAMBDA * lc_loss
+        if sample_weight is not None:
+            a = loss_mse * sample_weight
+            loss_mse = a.sum() / sample_weight.sum()
+        else:
+            loss_mse = loss_mse.mean()
         return loss_mse
 
     def test_forward(self, img):

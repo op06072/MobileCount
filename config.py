@@ -81,6 +81,14 @@ __C.VAL_FREQ = 10  # Before __C.VAL_DENSE_START epoches, the freq is set as __C.
 # ------------------------------VIS------------------------
 __C.VISIBLE_NUM_IMGS = 1  # must be 1 for training images with the different sizes
 
+# L1 loss reduction
+__C.L1_LOSS_REDUCTION = "mean"
+
+# Custom LOSS
+__C.CUSTOM_LOSS = True
+__C.CUSTOM_LOSS_LAMBDA = 10
+__C.CUSTOM_LOSS_SIZES = (2, 4, 8)
+
 # ================================================================================
 # ================================================================================
 # ================================================================================

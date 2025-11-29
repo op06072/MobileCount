@@ -296,6 +296,7 @@ Temporary Items
 .apdisk
 
 exp/
+exp/*/code/
 
 *.pyc
 

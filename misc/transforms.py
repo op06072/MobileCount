@@ -3,10 +3,13 @@ import random
 import numbers
 import numpy as np
 from config import cfg
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageFilter, ImageMath, ImageEnhance
+import torchvision.transforms as standard_transforms
+from iafoule.write_text import write_texts
 
 
 # ===============================img tranforms============================
+
 
 class Compose(object):
     def __init__(self, transforms):
@@ -26,13 +29,19 @@ class RandomHorizontallyFlip(object):
     def __call__(self, img, mask, bbx=None):
         if random.random() < 0.5:
             if bbx is None:
-                return img.transpose(Image.FLIP_LEFT_RIGHT), mask.transpose(Image.FLIP_LEFT_RIGHT)
+                return img.transpose(Image.FLIP_LEFT_RIGHT), mask.transpose(
+                    Image.FLIP_LEFT_RIGHT
+                )
             w, h = img.size
             xmin = w - bbx[:, 3]
             xmax = w - bbx[:, 1]
             bbx[:, 1] = xmin
             bbx[:, 3] = xmax
-            return img.transpose(Image.FLIP_LEFT_RIGHT), mask.transpose(Image.FLIP_LEFT_RIGHT), bbx
+            return (
+                img.transpose(Image.FLIP_LEFT_RIGHT),
+                mask.transpose(Image.FLIP_LEFT_RIGHT),
+                bbx,
+            )
         if bbx is None:
             return img, mask
         return img, mask, bbx
@@ -57,11 +66,15 @@ class RandomCrop(object):
         if w == tw and h == th:
             return img, mask
         if w < tw or h < th:
-            return img.resize((tw, th), Image.BILINEAR), mask.resize((tw, th), Image.NEAREST)
+            return img.resize((tw, th), Image.BILINEAR), mask.resize(
+                (tw, th), Image.NEAREST
+            )
 
         x1 = random.randint(0, w - tw)
         y1 = random.randint(0, h - th)
-        return img.crop((x1, y1, x1 + tw, y1 + th)), mask.crop((x1, y1, x1 + tw, y1 + th))
+        return img.crop((x1, y1, x1 + tw, y1 + th)), mask.crop(
+            (x1, y1, x1 + tw, y1 + th)
+        )
 
 
 class CenterCrop(object):
@@ -74,9 +87,11 @@ class CenterCrop(object):
     def __call__(self, img, mask):
         w, h = img.size
         th, tw = self.size
-        x1 = int(round((w - tw) / 2.))
-        y1 = int(round((h - th) / 2.))
-        return img.crop((x1, y1, x1 + tw, y1 + th)), mask.crop((x1, y1, x1 + tw, y1 + th))
+        x1 = int(round((w - tw) / 2.0))
+        y1 = int(round((h - th) / 2.0))
+        return img.crop((x1, y1, x1 + tw, y1 + th)), mask.crop(
+            (x1, y1, x1 + tw, y1 + th)
+        )
 
 
 class FreeScale(object):
@@ -86,7 +101,7 @@ class FreeScale(object):
     def __call__(self, img, mask):
         return (
             img.resize((self.size[1], self.size[0]), Image.BILINEAR),
-            mask.resize((self.size[1], self.size[0]), Image.NEAREST)
+            mask.resize((self.size[1], self.size[0]), Image.NEAREST),
         )
 
 
@@ -95,7 +110,10 @@ class ScaleDown(object):
         self.size = size  # (h, w)
 
     def __call__(self, mask):
-        return mask.resize((self.size[1] / cfg.TRAIN.DOWNRATE, self.size[0] / cfg.TRAIN.DOWNRATE), Image.NEAREST)
+        return mask.resize(
+            (self.size[1] / cfg.TRAIN.DOWNRATE, self.size[0] / cfg.TRAIN.DOWNRATE),
+            Image.NEAREST,
+        )
 
 
 class Scale(object):
@@ -113,14 +131,146 @@ class Scale(object):
         if w < h:
             ow = self.size
             oh = int(self.size * h / w)
-            return img.resize((ow, oh), Image.BILINEAR), mask.resize((ow, oh), Image.NEAREST)
+            return img.resize((ow, oh), Image.BILINEAR), mask.resize(
+                (ow, oh), Image.NEAREST
+            )
         else:
             oh = self.size
             ow = int(self.size * w / h)
-            return img.resize((ow, oh), Image.BILINEAR), mask.resize((ow, oh), Image.NEAREST)
+            return img.resize((ow, oh), Image.BILINEAR), mask.resize(
+                (ow, oh), Image.NEAREST
+            )
+
+
+class RandomDownOverSampling(object):
+    # Downsampling then upsampling the image to the original size.
+    # Simulate bad encoding, to make the network more resilient
+    def __init__(self, factor):
+        self.factor = factor
+
+    def __call__(self, img, mask):
+        if self.factor < 0:  # or random.random() > 0.5:
+            return img, mask
+
+        if img.size != mask.size:
+            print(img.size)
+            print(mask.size)
+        assert img.size == mask.size
+        w, h = img.size
+        factor = random.choice(range(self.factor)) + 1
+        return img.resize((int(w / factor), int(h / factor)), Image.BILINEAR).resize(
+            (w, h), Image.NEAREST
+        ), mask
+
+
+class RandomDownSampling(object):
+    # Downsampling then upsampling the image to the original size.
+    # Simulate bad encoding, to make the network more resilient
+    def __init__(self, factor):
+        self.factor = factor
+
+    def __call__(self, img, mask):
+        if self.factor < 0 or random.random() > 0.5:
+            return img, mask
+
+        if img.size != mask.size:
+            print(img.size)
+            print(mask.size)
+        assert img.size == mask.size
+        w, h = img.size
+        return img.resize(
+            (int(w / self.factor), int(h / self.factor)), Image.BILINEAR
+        ), resize_target(mask, int(w / self.factor), int(h / self.factor))
+
+
+class RandomBrightness(object):
+    def __init__(self, factor):
+        self.factor = factor
+
+    def __call__(self, img, mask):
+        if self.factor < 0 or random.random() > 0.5:
+            # print('RandomBrightness NO')
+            return img, mask
+
+        # Brightness factor = 1 #gives original image
+        # Brightness factor = 0.5 #darkens the image
+        # Brightness factor = 1.5 #brightens the image
+        coeff = 2.0 * (random.randint(0, 1) - 0.5)
+        brightness_factor = 1 + coeff * self.factor
+        # print('RandomBrightness', brightness_factor)
+        enhancer = ImageEnhance.Brightness(img)
+        img_output = enhancer.enhance(brightness_factor)
+        return img_output, mask
+
+
+class RandomContrast(object):
+    def __init__(self, factor):
+        self.factor = factor
+
+    def __call__(self, img, mask):
+        if self.factor < 0 or random.random() > 0.5:
+            return img, mask
+
+        # Contrast factor = 1 #gives original image
+        # Contrast factor = 0.5 #decrease constrast
+        # Contrast factor = 1.5 #increase contrast
+        coeff = 2.0 * (random.randint(0, 1) - 0.5)
+        contrast_factor = 1 + coeff * self.factor
+        enhancer = ImageEnhance.Contrast(img)
+        img_output = enhancer.enhance(contrast_factor)
+        return img_output, mask
+
+
+class ColorJitter(object):
+    def __init__(
+        self,
+        brightness=0.0,
+        contrast=0.0,
+        saturation=0.0,
+        hue=0.0,
+    ):
+        self.brightness = brightness
+        self.contrast = contrast
+        self.saturation = saturation
+        self.hue = hue
+        self.action = True
+        if (
+            (isinstance(self.brightness, float) and self.brightness == 0.0)
+            and (isinstance(self.contrast, float) and self.contrast == 0.0)
+            and (isinstance(self.saturation, float) and self.saturation == 0.0)
+            and (isinstance(self.hue, float) and self.hue == 0.0)
+        ):
+            self.action = False
+
+    def __call__(self, img, mask):
+        if not self.action or random.random() > 0.5:
+            return img, mask
+
+        img = standard_transforms.ColorJitter(
+            brightness=self.brightness,
+            contrast=self.contrast,
+            saturation=self.saturation,
+            hue=self.hue,
+        )(img)
+
+        return img, mask
+
+
+class WriteTexts(object):
+    def __init__(self, factor):
+        self.factor = factor
+
+    def __call__(self, img, mask):
+        if self.factor < 0 or self.factor > 1 or random.random() > self.factor:
+            return img, mask
+
+        img = write_texts(img, cfg.TEXTS2ADD)
+
+        return img, mask
 
 
 # ===============================label tranforms============================
+
 
 class DeNormalize(object):
     def __init__(self, mean, std):
@@ -157,6 +307,10 @@ class GTScaleDown(object):
         w, h = img.size
         if self.factor == 1:
             return img
-        tmp = np.array(img.resize((w / self.factor, h / self.factor), Image.BICUBIC)) * self.factor * self.factor
+        tmp = (
+            np.array(img.resize((w / self.factor, h / self.factor), Image.BICUBIC))
+            * self.factor
+            * self.factor
+        )
         img = Image.fromarray(tmp)
         return img
