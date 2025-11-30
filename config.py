@@ -9,20 +9,20 @@ cfg = __C
 
 # ------------------------------TRAIN------------------------
 __C.SEED = 3035  # random seed,  for reporduction
-__C.DATASET = 'MALL'  # dataset selection: SHHA, SHHB, UCF50, QNRF, WE
+__C.DATASET = "MULTIPLE"  # dataset selection: SHHA, SHHB, UCF50, QNRF, WE
 __C.DATA_WORKERS = 8 # macOS: 8, Windows: 0
 
-if __C.DATASET == 'UCF50':  # only for UCF50
+if __C.DATASET == "UCF50":  # only for UCF50
     from datasets.UCF50.setting import cfg_data
 
     __C.VAL_INDEX = cfg_data.VAL_INDEX
 
-if __C.DATASET == 'GCC':  # only for GCC
+if __C.DATASET == "GCC":  # only for GCC
     from datasets.GCC.setting import cfg_data
 
     __C.VAL_MODE = cfg_data.VAL_MODE
 
-__C.NET = 'LSANet'  # net selection: MobileCount, MobileCountx1_25, MobileCountx2
+__C.NET = "MobileCount"  # net selection: MobileCount, MobileCountx1_25, MobileCountx2
 __C.NET_BN = True
 __C.NET_ACT = True
 
@@ -30,51 +30,60 @@ __C.PRE_GCC = False  # use the pretrained model on GCC dataset
 __C.PRE_GCC_MODEL = './exp/04-06_16-19_GCC_CSRNet_0.0001_rd/all_ep_130_mae_34.9_mse_71.9.pth'  # path to model
 
 __C.DEVICE = torch.device(
-    "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+    "cuda"
+    if torch.cuda.is_available()
+    else "mps"
+    if torch.backends.mps.is_available()
+    else "cpu"
 )
-__C.GPU_DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else ""
+__C.GPU_DEVICE = (
+    "cuda"
+    if torch.cuda.is_available()
+    else "mps"
+    if torch.backends.mps.is_available()
+    else ""
+)
 __C.GPU_ID = [0]  # sigle gpu: [0], [1] ...; multi gpus: [0,1]
 __C.USE_AMP_TRAIN = True  # Automatic Mixed Precision for training
 __C.USE_AMP_VAL = True  # Automatic Mixed Precision for validation/inference
 
 # learning rate settings
 # __C.LR = 1e-4  # learning rate
-__C.LR = 20e-4
+__C.LR = 1e-4
 # __C.LR_DECAY = 0.995  # decay rate
 # __C.LR_DECAY = 0.9927 # 2e-4
 # __C.LR_DECAY = 0.9905  # 4e-4
-__C.LR_DECAY = (0.18/(__C.LR*(10**-math.floor(math.log10(__C.LR)))))**(1/300)
-__C.LR_DECAY_START = -1  # when training epoch is more than it, the learning rate will be begun to decay
-__C.OPTIM = 'nadam'
-__C.SCHEDULER = 'custom_annealing'
+__C.LR_DECAY = (0.18 / (__C.LR * (10 ** -math.floor(math.log10(__C.LR))))) ** (1 / 300)
+__C.LR_DECAY_START = (
+    -1
+)  # when training epoch is more than it, the learning rate will be begun to decay
+__C.OPTIM = "nadam"
+__C.SCHEDULER = "custom_annealing"
 __C.WEIGHT_DECAY = 1e-3
 # __C.WEIGHT_DECAY = 1e-4
 __C.NUM_EPOCH_LR_DECAY = 1  # decay frequency
 __C.MAX_EPOCH = 1000
 
-# print 
+# print
 __C.PRINT_FREQ = 10
 
 now = time.strftime("%m-%d_%H-%M", time.localtime())
 
-__C.EXP_NAME = now \
-               + '_' + __C.DATASET \
-               + '_' + __C.NET \
-               + '_' + str(__C.LR)
+__C.EXP_NAME = now + "_" + __C.DATASET + "_" + __C.NET + "_" + str(__C.LR)
 
-if __C.NET == 'LSANet':
+if __C.NET == "LSANet":
     if __C.NET_BN:
-        __C.EXP_NAME += '_BN'
+        __C.EXP_NAME += "_BN"
     if __C.NET_ACT:
-        __C.EXP_NAME += '_ACT'
+        __C.EXP_NAME += "_ACT"
 
-if __C.DATASET == 'UCF50':
-    __C.EXP_NAME += '_' + str(__C.VAL_INDEX)
+if __C.DATASET == "UCF50":
+    __C.EXP_NAME += "_" + str(__C.VAL_INDEX)
 
-if __C.DATASET == 'GCC':
-    __C.EXP_NAME += '_' + __C.VAL_MODE
+if __C.DATASET == "GCC":
+    __C.EXP_NAME += "_" + __C.VAL_MODE
 
-__C.EXP_PATH = './exp'  # the path of logs, checkpoints, and current codes
+__C.EXP_PATH = "./exp"  # the path of logs, checkpoints, and current codes
 
 # ------------------------------VAL------------------------
 __C.VAL_DENSE_START = 1
