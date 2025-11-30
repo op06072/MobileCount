@@ -27,7 +27,7 @@ def loading_data(
     train_main_transform_SHHA = own_transforms.Compose(
         [
             own_transforms.RandomCrop(cfg_data.TRAIN_SIZE),
-            own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
+            # own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
             own_transforms.RandomHorizontallyFlip(),
         ]
     )
@@ -35,8 +35,8 @@ def loading_data(
     train_main_transform_SHHB = own_transforms.Compose(
         [
             own_transforms.RandomCrop(cfg_data.TRAIN_SIZE),
-            own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
-            own_transforms.RandomDownOverSampling(4),
+            # own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
+            # own_transforms.RandomDownOverSampling(4),
             own_transforms.RandomHorizontallyFlip(),
         ]
     )
@@ -44,7 +44,7 @@ def loading_data(
     train_main_transform_WE = own_transforms.Compose(
         [
             own_transforms.RandomCrop(cfg_data.TRAIN_SIZE),
-            own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
+            # own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
             own_transforms.RandomHorizontallyFlip(),
         ]
     )
@@ -52,16 +52,16 @@ def loading_data(
     train_main_transform_BG = own_transforms.Compose(
         [
             own_transforms.RandomCrop(cfg_data.TRAIN_SIZE),
-            own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
+            # own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
             own_transforms.RandomHorizontallyFlip(),
-            own_transforms.WriteTexts(factor=0.75),
+            # own_transforms.WriteTexts(factor=0.75),
         ]
     )
 
     train_main_transform_JHU = own_transforms.Compose(
         [
             own_transforms.RandomCrop(cfg_data.TRAIN_SIZE),
-            own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
+            # own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
             own_transforms.RandomHorizontallyFlip(),
         ]
     )
@@ -76,7 +76,7 @@ def loading_data(
     train_main_transform_QNRF = own_transforms.Compose(
         [
             own_transforms.RandomCrop(cfg_data.TRAIN_SIZE),
-            own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
+            # own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
             own_transforms.RandomHorizontallyFlip(),
         ]
     )
@@ -84,7 +84,7 @@ def loading_data(
     train_main_transform_MALL = own_transforms.Compose(
         [
             own_transforms.RandomCrop(cfg_data.TRAIN_SIZE),
-            own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
+            # own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
             own_transforms.RandomHorizontallyFlip(),
         ]
     )

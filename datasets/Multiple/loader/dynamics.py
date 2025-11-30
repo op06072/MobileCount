@@ -12,40 +12,45 @@ from multiprocessing.managers import DictProxy
 
 
 class DynamicDataset(Dataset):
-    def __init__(self,
-                 couple_datasets,
-                 mode,
-                 main_transform=None,
-                 img_transform=None,
-                 gt_transform=None,
-                 image_size=None,
-                 **kwargs):
+    def __init__(
+        self,
+        couple_datasets,
+        mode,
+        main_transform=None,
+        img_transform=None,
+        gt_transform=None,
+        image_size=None,
+        **kwargs,
+    ):
         """
-            - couple_datasets : tuple or list of tuple, tuple for dataset class and
-                                the dataset path, example : (CustomGCC, '/data/GCC') or
-                                [(CustomGCC, '/data/GCC'), (CustomSHH, '/data/SHHB')]
-            - mode : str, dataset mode between 'train' and 'test'
-            - **kwargs : keywords arguments, some datasets required arguments with:
-                - GCC :
-                    - GCC__gt_folder
-                    - GCC__index_folder
-                    - GCC__gt_format
-                - SHH :
-                    - SHHA__gt_name_folder
-                    - SHHA__gt_format
-                    - SHHB__gt_name_folder
-                    - SHHB__gt_format
+        - couple_datasets : tuple or list of tuple, tuple for dataset class and
+                            the dataset path, example : (CustomGCC, '/data/GCC') or
+                            [(CustomGCC, '/data/GCC'), (CustomSHH, '/data/SHHB')]
+        - mode : str, dataset mode between 'train' and 'test'
+        - **kwargs : keywords arguments, some datasets required arguments with:
+            - GCC :
+                - GCC__gt_folder
+                - GCC__index_folder
+                - GCC__gt_format
+            - SHH :
+                - SHHA__gt_name_folder
+                - SHHA__gt_format
+                - SHHB__gt_name_folder
+                - SHHB__gt_format
 
-            Optionnal:
-            - img_transform : func, pytorch transform for image
-            - gt_transform : func, pytorch transform for ground truth
-            - main_transform : func, main pytorch transform
-            - image_size : int, tuple or None. Resize the image with the shape
-                           by a tupe, a int for a square or
-                           None for no action (default None)
+        Optionnal:
+        - img_transform : func, pytorch transform for image
+        - gt_transform : func, pytorch transform for ground truth
+        - main_transform : func, main pytorch transform
+        - image_size : int, tuple or None. Resize the image with the shape
+                       by a tupe, a int for a square or
+                       None for no action (default None)
         """
-        self.couple_datasets = couple_datasets if not isinstance(
-            couple_datasets, tuple) else [couple_datasets]
+        self.couple_datasets = (
+            couple_datasets
+            if not isinstance(couple_datasets, tuple)
+            else [couple_datasets]
+        )
         self.img_transform = img_transform
         self.gt_transform = gt_transform
         self.main_transform = main_transform
@@ -66,22 +71,46 @@ class DynamicDataset(Dataset):
     def setdict(self, datas: DataDict | DictProxy):
         self.datas = datas
 
+        self.dataset = self.dataset.reset_index(drop=True)
+        # Optimization: Convert DataFrame to list of dicts for faster indexing
+        self.dataset_list = self.dataset.to_dict("records")
+        print(f"DynamicDataset - mode:{self.mode} - dataset.shape:{self.dataset.shape}")
+
     def __getitem__(self, index):
-        row = self.dataset.loc[index]
-        if 'sample_weight' not in row:
-            row['sample_weight'] = 1
-        dataset_func = self.read_dict[row.folder.as_posix()]
-        if row.path_img not in self.datas:
-            img, den = dataset_func['img'](row.path_img), dataset_func['gt'](row.path_gt)
+        row = self.dataset_list[index]
+        # row is now a dict, so access with keys instead of attributes if it was a namedtuple,
+        # but previously it was a Series.
+        # Let's check how it was accessed: row.folder, row.path_img.
+        # Dict keys are strings.
+
+        folder_path = row["folder"]
+        # folder might be a Path object or string depending on how it was stored.
+        # In loaders (e.g. QNRF.py), 'folder' is a Path object.
+        # In read_dict keys are strings (folder.as_posix()).
+
+        if isinstance(folder_path, str):
+            folder_key = folder_path
+        else:
+            folder_key = folder_path.as_posix()
+
+        dataset_func = self.read_dict[folder_key]
+
+        path_img = row["path_img"]
+        path_gt = row["path_gt"]
+        sample_weight = row.get("sample_weight", 1)
+
+        if path_img not in self.datas:
+            img, den = dataset_func["img"](path_img), dataset_func["gt"](path_gt)
             if self.image_size is not None:
                 img, den = self.resize(img), self.resize(den)
-            self.datas[row.path_img] = [img, den]
+            self.datas[path_img] = [img, den]
         else:
-            img, den = self.datas[row.path_img]
+            img, den = self.datas[path_img]
+
         # specific dataset transform in img and den
-        specific_func = dataset_func['transform']
+        specific_func = dataset_func["transform"]
         img, den = self.transform_img(img, den, specific=specific_func)
-        return img, den, row['sample_weight']
+        return img, den, sample_weight
 
     def transform_img(self, img, den, specific=None):
         if self.main_transform is not None:
@@ -99,11 +128,13 @@ class DynamicDataset(Dataset):
         for LoadClass, folder_dataset in self.couple_datasets:
             loader = LoadClass(folder_dataset, self.mode, **self.kwargs)
             self.dataset = pd.concat((self.dataset, loader.dataset), axis=0)
-            self.read_dict[folder_dataset] = {"gt": loader.read_gt,
-                                              "img": loader.read_image,
-                                              "transform": loader.transform}
+            self.read_dict[folder_dataset] = {
+                "gt": loader.read_gt,
+                "img": loader.read_image,
+                "transform": loader.transform,
+            }
         self.dataset = self.dataset.reset_index(drop=True)
-        print(f'DynamicDataset - mode:{self.mode} - dataset.shape:{self.dataset.shape}')
+        print(f"DynamicDataset - mode:{self.mode} - dataset.shape:{self.dataset.shape}")
 
 
 class CustomDataset:
@@ -124,8 +155,8 @@ class CustomDataset:
         Read an image and return Pillow Image
         """
         img = Image.open(img_path)
-        if img.mode != 'RGB':
-            img = img.convert('RGB')
+        if img.mode != "RGB":
+            img = img.convert("RGB")
         return img
 
     def read_gt(self, gt_path):
@@ -144,7 +175,7 @@ class CustomDataset:
         pass
 
     def __repr__(self):
-        return f'{type(self).__name__} in mode {self.mode}'
+        return f"{type(self).__name__} in mode {self.mode}"
 
     def __len__(self):
         return len(self.dataset)
@@ -152,9 +183,11 @@ class CustomDataset:
     def check_density_map(self, density_map):
         sum_negative = (density_map < 0).sum()
         min_negative = (density_map < 0).min()
-        if sum_negative < 0.:
-            lg.warning(f'density map with negative values - sum : {sum_negative} - min : {min_negative}')
-            assert sum_negative == 0.
+        if sum_negative < 0.0:
+            lg.warning(
+                f"density map with negative values - sum : {sum_negative} - min : {min_negative}"
+            )
+            assert sum_negative == 0.0
 
 
 class CollateFN:
@@ -210,15 +243,19 @@ class CollateFN:
             cropped_imgs = []
             cropped_dens = []
             for i_sample in range(len(batch)):
-                _img, _den = self.random_crop(img=imgs[i_sample],
-                                              den=dens[i_sample],
-                                              dst_size=[min_ht, min_wd])
+                _img, _den = self.random_crop(
+                    img=imgs[i_sample], den=dens[i_sample], dst_size=[min_ht, min_wd]
+                )
                 cropped_imgs.append(_img)
                 cropped_dens.append(_den)
 
-            cropped_imgs = torch.stack(cropped_imgs, 0,
-                                       out=self.share_memory(cropped_imgs))
-            cropped_dens = torch.stack(cropped_dens, 0,
-                                       out=self.share_memory(cropped_dens))
+            cropped_imgs = torch.stack(
+                cropped_imgs, 0, out=self.share_memory(cropped_imgs)
+            )
+            cropped_dens = torch.stack(
+                cropped_dens, 0, out=self.share_memory(cropped_dens)
+            )
             return [cropped_imgs, cropped_dens]
-        raise TypeError(f"Batch must contain tensors, found: {type(imgs[0])} and {type(dens[1])}")
+        raise TypeError(
+            f"Batch must contain tensors, found: {type(imgs[0])} and {type(dens[1])}"
+        )

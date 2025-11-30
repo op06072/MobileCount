@@ -56,7 +56,7 @@ class CrowdCounter(nn.Module):
                 pool = pool.to(self.dev)
             est = pool(output.unsqueeze(0))
             gt = pool(target.unsqueeze(0))
-            c = criterion_L1(est, gt).squeeze()
+            c = criterion_L1(est, gt).squeeze(0)
             if c.ndim == 3:
                 c_mean = c.mean(dim=(1, 2)) / s**2
             else:
