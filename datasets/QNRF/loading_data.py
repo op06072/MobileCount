@@ -3,8 +3,8 @@ from __future__ import annotations
 import torchvision.transforms as standard_transforms
 from torch.utils.data import DataLoader
 import misc.transforms as own_transforms
-from QNRF import QNRF
-from setting import cfg_data 
+from datasets.QNRF import QNRF
+from datasets.QNRF.setting import cfg_data
 import torch
 import random
 
@@ -50,7 +50,7 @@ def SHHA_collate(batch):
     # @GJY 
     r"""Puts each data field into a tensor with outer dimension batch size"""
 
-    transposed = zip(*batch) # imgs and dens
+    transposed = list(zip(*batch)) # imgs and dens
     imgs, dens = [transposed[0],transposed[1]]
 
 
