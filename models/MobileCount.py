@@ -59,7 +59,7 @@ class BasicBlock(nn.Module):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = nn.BatchNorm2d(planes, momentum=0.05)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.SiLU(inplace=True)
         self.conv2 = conv3x3(planes, planes)
         self.bn2 = nn.BatchNorm2d(planes, momentum=0.05)
         self.downsample = downsample
@@ -105,7 +105,7 @@ class Bottleneck(nn.Module):
         self.bn2 = nn.BatchNorm2d(inplanes * expansion)
         self.conv3 = nn.Conv2d(inplanes * expansion, planes, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.SiLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
 
@@ -133,7 +133,6 @@ class Bottleneck(nn.Module):
 
 
 class MobileCount(nn.Module):
-
     def __init__(self, num_classes=1, pretrained=False):
         self.inplanes = 32
         block = Bottleneck
@@ -146,7 +145,7 @@ class MobileCount(nn.Module):
 
         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(32)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.SiLU(inplace=True)
 
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 32, layers[0], stride=1, expansion=1)
@@ -240,7 +239,7 @@ class MobileCount(nn.Module):
         x3 = self.p_ims1d2_outl2_dimred(l3)
         x3 = self.adapt_stage2_b2_joint_varout_dimred(x3)
         x3 = x3 + x4
-        x3 = F.relu(x3)
+        x3 = F.silu(x3)
         x3 = self.mflow_conv_g2_pool(x3)
         x3 = self.mflow_conv_g2_b3_joint_varout_dimred(x3)
         x3 = nn.Upsample(size=l2.size()[2:], mode="bilinear")(x3)
@@ -248,7 +247,7 @@ class MobileCount(nn.Module):
         x2 = self.p_ims1d2_outl3_dimred(l2)
         x2 = self.adapt_stage3_b2_joint_varout_dimred(x2)
         x2 = x2 + x3
-        x2 = F.relu(x2)
+        x2 = F.silu(x2)
         x2 = self.mflow_conv_g3_pool(x2)
         x2 = self.mflow_conv_g3_b3_joint_varout_dimred(x2)
         x2 = nn.Upsample(size=l1.size()[2:], mode="bilinear")(x2)
@@ -256,12 +255,12 @@ class MobileCount(nn.Module):
         x1 = self.p_ims1d2_outl4_dimred(l1)
         x1 = self.adapt_stage4_b2_joint_varout_dimred(x1)
         x1 = x1 + x2
-        x1 = F.relu(x1)
+        x1 = F.silu(x1)
         x1 = self.mflow_conv_g4_pool(x1)
 
         x1 = self.dropout_clf(x1)
         out = self.clf_conv(x1)
 
-        out = F.upsample(out, size=size1, mode='bilinear')
+        out = F.interpolate(out, size=size1, mode="bilinear")
 
         return out

@@ -34,6 +34,8 @@ __C.DEVICE = torch.device(
 )
 __C.GPU_DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else ""
 __C.GPU_ID = [0]  # sigle gpu: [0], [1] ...; multi gpus: [0,1]
+__C.USE_AMP_TRAIN = True  # Automatic Mixed Precision for training
+__C.USE_AMP_VAL = True  # Automatic Mixed Precision for validation/inference
 
 # learning rate settings
 # __C.LR = 1e-4  # learning rate

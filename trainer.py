@@ -83,11 +83,20 @@ class Trainer:
             self.exp_path, self.exp_name, self.pwd, "exp"
         )
 
+        self.scaler = torch.amp.GradScaler(self.device.type)
+
+        # Determine dtype for autocast (computed once)
+        self.amp_dtype = torch.float16
+        if self.device.type == "cuda" and torch.cuda.is_bf16_supported():
+            self.amp_dtype = torch.bfloat16
+
         self.i_tb = 0
         self.epoch = -1
 
         if cfg.PRE_GCC:
-            self.net.load_state_dict(torch.load(cfg.PRE_GCC_MODEL))
+            self.net.load_state_dict(
+                torch.load(cfg.PRE_GCC_MODEL, map_location=self.device)
+            )
 
         self.train_loader: DataLoader[Any] | None
         self.val_loader: DataLoader[Any]
@@ -158,14 +167,37 @@ class Trainer:
                 sample_weight = Variable(data[2]).to(self.device)
 
             self.optimizer.zero_grad()
-            pred_map = self.net(img, gt_map, sample_weight)
-            loss = self.net.loss
+
+            if cfg.USE_AMP_TRAIN:
+                with torch.amp.autocast(self.device.type, dtype=self.amp_dtype):
+                    pred_map = self.net(img, gt_map, sample_weight)
+                    loss = self.net.loss
+            else:
+                pred_map = self.net(img, gt_map, sample_weight)
+                loss = self.net.loss
+
             if isinstance(self.net.lc_loss, int):
                 lc_loss = self.net.lc_loss
             else:
                 lc_loss = self.net.lc_loss.item()
-            loss.backward()
-            self.optimizer.step()
+
+            if cfg.USE_AMP_TRAIN:
+                # Disable scaler for bfloat16 (CUDA) as it doesn't need scaling
+                if self.device.type == "cuda" and self.amp_dtype == torch.bfloat16:
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(self.net.parameters(), 10)
+                    self.optimizer.step()
+                else:
+                    # Use scaler for float16 (CUDA or MPS)
+                    self.scaler.scale(loss).backward()
+                    self.scaler.unscale_(self.optimizer)
+                    torch.nn.utils.clip_grad_norm_(self.net.parameters(), 10)
+                    self.scaler.step(self.optimizer)
+                    self.scaler.update()
+            else:
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.net.parameters(), 10)
+                self.optimizer.step()
 
             if (i + 1) % cfg.PRINT_FREQ == 0:
                 self.i_tb += 1
@@ -212,7 +244,11 @@ class Trainer:
                 if len(data) == 3:
                     sample_weight = Variable(data[2]).to(self.device)
 
-                pred_map = self.net.forward(img, gt_map, sample_weight)
+                if cfg.USE_AMP_VAL:
+                    with torch.amp.autocast(self.device.type, dtype=self.amp_dtype):
+                        pred_map = self.net.forward(img, gt_map, sample_weight)
+                else:
+                    pred_map = self.net.forward(img, gt_map, sample_weight)
 
                 step = step + 1
                 time_start1 = time.time()
@@ -294,7 +330,11 @@ class Trainer:
                     img = Variable(img).to(self.device)
                     gt_map = Variable(gt_map).to(self.device)
 
-                    pred_map = self.net.forward(img, gt_map)
+                    if cfg.USE_AMP_VAL:
+                        with torch.amp.autocast(self.device.type, dtype=self.amp_dtype):
+                            pred_map = self.net.forward(img, gt_map)
+                    else:
+                        pred_map = self.net.forward(img, gt_map)
 
                     pred_map = pred_map.detach().cpu().numpy()
                     gt_map = gt_map.detach().cpu().numpy()
@@ -365,7 +405,11 @@ class Trainer:
                 img = Variable(img).to(self.device)
                 gt_map = Variable(gt_map).to(self.device)
 
-                pred_map = self.net.forward(img, gt_map)
+                if cfg.USE_AMP_VAL:
+                    with torch.amp.autocast(self.device.type, dtype=self.amp_dtype):
+                        pred_map = self.net.forward(img, gt_map)
+                else:
+                    pred_map = self.net.forward(img, gt_map)
 
                 pred_map = pred_map.detach().cpu().numpy()
                 gt_map = gt_map.detach().cpu().numpy()

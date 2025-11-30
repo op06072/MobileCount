@@ -81,7 +81,7 @@ class CrowdCounter(nn.Module):
         return self.loss_mse
 
     def forward(self, img, gt_map=None, sample_weight=None):
-        density_map = self.CCN(img)
+        density_map = self.test_forward(img)
         if gt_map is not None:
             self.loss_mse = self.build_loss(
                 density_map.squeeze(), gt_map.squeeze(), sample_weight
@@ -115,4 +115,6 @@ class CrowdCounter(nn.Module):
 
     def test_forward(self, img):
         density_map = self.CCN(img)
+        if density_map.dtype not in (torch.bfloat16, torch.float, torch.double):
+            density_map = density_map.float()
         return density_map
