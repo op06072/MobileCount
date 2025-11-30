@@ -5,8 +5,15 @@ import misc.transforms as own_transforms
 from datasets.MULTIPLE.loader import DynamicDataset, CollateFN
 from datasets.MULTIPLE.setting import cfg_data
 
+from typing import Tuple, Any
+from datasets import DataDict
+from multiprocessing.managers import DictProxy
 
-def loading_data():
+
+def loading_data(
+        datas: DataDict | DictProxy,
+        data_workers: int = 0
+) -> Tuple[DataLoader[Any] | None, DataLoader[Any], own_transforms.Compose]:
     mean_std = cfg_data.MEAN_STD
     log_para = cfg_data.LOG_PARA
 
@@ -122,14 +129,15 @@ def loading_data():
         image_size=cfg_data.IMAGE_SIZE,
         **cfg_data.PATH_SETTINGS,
     )
-
+    train_set.setdict(datas)
     train_loader = DataLoader(
         train_set,
         batch_size=cfg_data.TRAIN_BATCH_SIZE,
-        num_workers=8,
+        num_workers=data_workers,
         collate_fn=collate,
         shuffle=True,
         drop_last=True,
+        persistent_workers=(data_workers != 0),
     )
 
     val_set = DynamicDataset(
@@ -141,14 +149,16 @@ def loading_data():
         image_size=cfg_data.IMAGE_SIZE,
         **cfg_data.PATH_SETTINGS,
     )
+    val_set.setdict(datas)
     val_loader = None
     if len(val_set) > 0:
         val_loader = DataLoader(
             val_set,
             batch_size=cfg_data.VAL_BATCH_SIZE,
-            num_workers=8,
+            num_workers=data_workers,
             shuffle=True,
             drop_last=False,
+            persistent_workers=(data_workers != 0),
         )
 
     return train_loader, val_loader, restore_transform

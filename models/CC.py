@@ -56,7 +56,7 @@ class CrowdCounter(nn.Module):
                 pool = pool.to(self.dev)
             est = pool(output.unsqueeze(0))
             gt = pool(target.unsqueeze(0))
-            c = criterion_L1(est, gt).squeeze(0)
+            c = criterion_L1(est, gt).squeeze()
             if c.ndim == 3:
                 c_mean = c.mean(dim=(1, 2)) / s**2
             else:
@@ -90,10 +90,10 @@ class CrowdCounter(nn.Module):
 
     def build_loss(self, density_map, gt_data, sample_weight=None):
         loss_mse = self.loss_mse_fn(density_map, gt_data)
-        if loss_mse.dim() == 3:
-            loss_mse = torch.mean(loss_mse, dim=(1, 2))
+        if loss_mse.ndim == 3:
+            loss_mse = loss_mse.mean(dim=(1, 2))
         else:
-            loss_mse = torch.mean(loss_mse)
+            loss_mse = loss_mse.mean()
         self.lc_loss = 0
         computing_lc_loss = True
         if self.dev.type == "mps":

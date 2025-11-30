@@ -7,6 +7,9 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 
+from datasets import DataDict
+from multiprocessing.managers import DictProxy
+
 
 class DynamicDataset(Dataset):
     def __init__(self,
@@ -52,6 +55,7 @@ class DynamicDataset(Dataset):
         self.dataset = pd.DataFrame([])
         self.read_dict = {}
         self.parse_dataset()
+        self.datas = None
 
     def __len__(self):
         return len(self.dataset)
@@ -59,14 +63,21 @@ class DynamicDataset(Dataset):
     def resize(self, img):
         return img.resize(self.image_size, Image.BILINEAR)
 
+    def setdict(self, datas: DataDict | DictProxy):
+        self.datas = datas
+
     def __getitem__(self, index):
         row = self.dataset.loc[index]
         if 'sample_weight' not in row:
             row['sample_weight'] = 1
         dataset_func = self.read_dict[row.folder.as_posix()]
-        img, den = dataset_func['img'](row.path_img), dataset_func['gt'](row.path_gt)
-        if self.image_size is not None:
-            img, den = self.resize(img), self.resize(den)
+        if row.path_img not in self.datas:
+            img, den = dataset_func['img'](row.path_img), dataset_func['gt'](row.path_gt)
+            if self.image_size is not None:
+                img, den = self.resize(img), self.resize(den)
+            self.datas[row.path_img] = [img, den]
+        else:
+            img, den = self.datas[row.path_img]
         # specific dataset transform in img and den
         specific_func = dataset_func['transform']
         img, den = self.transform_img(img, den, specific=specific_func)

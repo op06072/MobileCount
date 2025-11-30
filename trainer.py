@@ -92,7 +92,23 @@ class Trainer:
         self.train_loader: DataLoader[Any] | None
         self.val_loader: DataLoader[Any]
         self.restore_transform: Compose
+        '''
         if self.data_mode in ["SHHA", "SHHB", "QNRF", "UCF50"]:
+            if cfg.DATA_WORKERS == 0:
+                datas: DictProxy[str, List[Image]] | DataDict = {}
+            else:
+                self.manager = Manager()
+                datas = self.manager.dict()
+            self.train_loader, self.val_loader, self.restore_transform = dataloader(
+                datas, data_workers=cfg.DATA_WORKERS
+            )
+        else:
+            self.train_loader, self.val_loader, self.restore_transform = dataloader()
+        '''
+        multiple_loading = self.data_mode in ["SHHA", "SHHB", "QNRF", "UCF50"]
+        if hasattr(cfg_data, "MULTIPLE_DATALOADER"):
+            multiple_loading = cfg_data.MULTIPLE_DATALOADER
+        if multiple_loading:
             if cfg.DATA_WORKERS == 0:
                 datas: DictProxy[str, List[Image]] | DataDict = {}
             else:
@@ -169,8 +185,8 @@ class Trainer:
                 print(
                     "        [cnt: gt: %.1f pred: %.2f]"
                     % (
-                        gt_map[0].sum().data / self.cfg_data.LOG_PARA,
-                        pred_map[0].sum().data / self.cfg_data.LOG_PARA,
+                        gt_map[0].sum().detach() / self.cfg_data.LOG_PARA,
+                        pred_map[0].sum().detach() / self.cfg_data.LOG_PARA,
                     )
                 )
                 train_losses.update(loss)
@@ -188,8 +204,8 @@ class Trainer:
         time_sampe = 0
         step = 0
 
-        for vi, data in enumerate(self.val_loader, 0):
-            with torch.no_grad():
+        with torch.no_grad():
+            for vi, data in enumerate(self.val_loader, 0):
                 sample_weight = None
                 img = Variable(data[0]).to(self.device)
                 gt_map = Variable(data[1]).to(self.device)
@@ -280,12 +296,12 @@ class Trainer:
 
                     pred_map = self.net.forward(img, gt_map)
 
-                    pred_map = pred_map.data.cpu().numpy()
-                    gt_map = gt_map.data.cpu().numpy()
+                    pred_map = pred_map.detach().cpu().numpy()
+                    gt_map = gt_map.detach().cpu().numpy()
 
                     for i_img in range(pred_map.shape[0]):
-                        pred_cnt = np.sum(pred_map[i_img]) / self.cfg_data.LOG_PARA
-                        gt_count = np.sum(gt_map[i_img]) / self.cfg_data.LOG_PARA
+                        pred_cnt = pred_map[i_img].sum() / self.cfg_data.LOG_PARA
+                        gt_count = gt_map[i_img].sum() / self.cfg_data.LOG_PARA
 
                         losses.update(self.net.loss.item(), i_sub)
                         maes.update(abs(gt_count - pred_cnt), i_sub)
@@ -351,12 +367,12 @@ class Trainer:
 
                 pred_map = self.net.forward(img, gt_map)
 
-                pred_map = pred_map.data.cpu().numpy()
-                gt_map = gt_map.data.cpu().numpy()
+                pred_map = pred_map.detach().cpu().numpy()
+                gt_map = gt_map.detach().cpu().numpy()
 
                 for i_img in range(pred_map.shape[0]):
-                    pred_cnt = np.sum(pred_map[i_img]) / self.cfg_data.LOG_PARA
-                    gt_count = np.sum(gt_map[i_img]) / self.cfg_data.LOG_PARA
+                    pred_cnt = pred_map[i_img].sum() / self.cfg_data.LOG_PARA
+                    gt_count = gt_map[i_img].sum() / self.cfg_data.LOG_PARA
 
                     s_mae = abs(gt_count - pred_cnt)
                     s_mse = (gt_count - pred_cnt) * (gt_count - pred_cnt)
