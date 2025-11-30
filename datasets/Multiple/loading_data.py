@@ -74,6 +74,14 @@ def loading_data():
         ]
     )
 
+    train_main_transform_MALL = own_transforms.Compose(
+        [
+            own_transforms.RandomCrop(cfg_data.TRAIN_SIZE),
+            own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
+            own_transforms.RandomHorizontallyFlip(),
+        ]
+    )
+
     specific_transform = {
         "SHHA__transform": train_main_transform_SHHA,
         "SHHB__transform": train_main_transform_SHHB,
@@ -82,6 +90,7 @@ def loading_data():
         "BG__transform": train_main_transform_BG,
         "JHU__transform": train_main_transform_JHU,
         "QNRF__transform": train_main_transform_QNRF,
+        "MALL__transform": train_main_transform_MALL,
     }
 
     if specific_transform:
