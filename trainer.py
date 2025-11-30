@@ -92,7 +92,7 @@ class Trainer:
         self.train_loader: DataLoader[Any] | None
         self.val_loader: DataLoader[Any]
         self.restore_transform: Compose
-        '''
+        """
         if self.data_mode in ["SHHA", "SHHB", "QNRF", "UCF50"]:
             if cfg.DATA_WORKERS == 0:
                 datas: DictProxy[str, List[Image]] | DataDict = {}
@@ -104,7 +104,7 @@ class Trainer:
             )
         else:
             self.train_loader, self.val_loader, self.restore_transform = dataloader()
-        '''
+        """
         multiple_loading = self.data_mode in ["SHHA", "SHHB", "QNRF", "UCF50"]
         if hasattr(cfg_data, "MULTIPLE_DATALOADER"):
             multiple_loading = cfg_data.MULTIPLE_DATALOADER
@@ -191,7 +191,7 @@ class Trainer:
                 )
                 train_losses.update(loss)
             train_loss = train_losses.avg
-            self.writer.add_scalar('train_loss', train_loss, self.epoch + 1)
+            self.writer.add_scalar("train_loss", train_loss, self.epoch + 1)
 
     def validate_V1(self):  # validate_V1 for SHHA, SHHB, UCF-QNRF, UCF50
         self.net.eval()
@@ -218,7 +218,7 @@ class Trainer:
                 time_start1 = time.time()
                 test_map = self.net.test_forward(img)
                 time_end1 = time.time()
-                time_sampe += (time_end1 - time_start1)
+                time_sampe += time_end1 - time_start1
 
                 pred_map = pred_map.detach().cpu().numpy()
                 gt_map = gt_map.data.detach().cpu().numpy()
@@ -231,9 +231,9 @@ class Trainer:
                         gt_map[i_img] / self.cfg_data.LOG_PARA,
                     )
 
-                    maes.update(metrics['absolute_error'])
-                    mapes.update(metrics['absolute_percentage_error'])
-                    mses.update(metrics['squared_error'])
+                    maes.update(metrics["absolute_error"])
+                    mapes.update(metrics["absolute_percentage_error"])
+                    mses.update(metrics["squared_error"])
 
                 if vi == -1:
                     vis_results(

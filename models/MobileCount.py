@@ -5,33 +5,40 @@ import torch.nn.functional as F
 
 
 model_urls = {
-    'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
-    'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
+    "resnet101": "https://download.pytorch.org/models/resnet101-5d3b4d8f.pth",
+    "resnet50": "https://download.pytorch.org/models/resnet50-19c8e357.pth",
 }
 
 
 # Helpers / wrappers
 def conv3x3(in_planes, out_planes, stride=1, bias=False):
     "3x3 convolution with padding"
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=1, bias=bias)
+    return nn.Conv2d(
+        in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=bias
+    )
 
 
 def conv1x1(in_planes, out_planes, stride=1, bias=False):
     "1x1 convolution"
-    return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride,
-                     padding=0, bias=bias)
+    return nn.Conv2d(
+        in_planes, out_planes, kernel_size=1, stride=stride, padding=0, bias=bias
+    )
 
 
 class CRPBlock(nn.Module):
-
     def __init__(self, in_planes, out_planes, n_stages):
         super(CRPBlock, self).__init__()
         for i in range(n_stages):
-            setattr(self, '{}_{}'.format(i + 1, 'outvar_dimred'),
-                    conv1x1(in_planes if (i == 0) else out_planes,
-                            out_planes, stride=1,
-                            bias=False))
+            setattr(
+                self,
+                "{}_{}".format(i + 1, "outvar_dimred"),
+                conv1x1(
+                    in_planes if (i == 0) else out_planes,
+                    out_planes,
+                    stride=1,
+                    bias=False,
+                ),
+            )
         self.stride = 1
         self.n_stages = n_stages
         self.maxpool = nn.MaxPool2d(kernel_size=5, stride=1, padding=2)
@@ -40,7 +47,7 @@ class CRPBlock(nn.Module):
         top = x
         for i in range(self.n_stages):
             top = self.maxpool(top)
-            top = getattr(self, '{}_{}'.format(i + 1, 'outvar_dimred'))(top)
+            top = getattr(self, "{}_{}".format(i + 1, "outvar_dimred"))(top)
             x = top + x
         return x
 
@@ -82,12 +89,21 @@ class Bottleneck(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, expansion=1):
         super(Bottleneck, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, inplanes*expansion, kernel_size=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(inplanes*expansion)
-        self.conv2 = nn.Conv2d(inplanes*expansion, inplanes*expansion, kernel_size=3, stride=stride,
-                               padding=1, bias=False, groups=inplanes*expansion)
-        self.bn2 = nn.BatchNorm2d(inplanes*expansion)
-        self.conv3 = nn.Conv2d(inplanes*expansion, planes, kernel_size=1, bias=False)
+        self.conv1 = nn.Conv2d(
+            inplanes, inplanes * expansion, kernel_size=1, bias=False
+        )
+        self.bn1 = nn.BatchNorm2d(inplanes * expansion)
+        self.conv2 = nn.Conv2d(
+            inplanes * expansion,
+            inplanes * expansion,
+            kernel_size=3,
+            stride=stride,
+            padding=1,
+            bias=False,
+            groups=inplanes * expansion,
+        )
+        self.bn2 = nn.BatchNorm2d(inplanes * expansion)
+        self.conv3 = nn.Conv2d(inplanes * expansion, planes, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
@@ -161,8 +177,7 @@ class MobileCount(nn.Module):
         self.dropout_clf = nn.Dropout(p=0.5)
         # self.clf_conv = nn.Conv2d(256, num_classes, kernel_size=3, stride=1,
         #                           padding=1, bias=True)
-        self.clf_conv = nn.Conv2d(32, 1, kernel_size=3, stride=1,
-                                  padding=1, bias=True)
+        self.clf_conv = nn.Conv2d(32, 1, kernel_size=3, stride=1, padding=1, bias=True)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -172,23 +187,30 @@ class MobileCount(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-
     def _make_crp(self, in_planes, out_planes, stages):
         layers = [CRPBlock(in_planes, out_planes, stages)]
         return nn.Sequential(*layers)
 
     def _make_layer(self, block, planes, blocks, stride, expansion):
-
         downsample = None
 
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes,
-                          kernel_size=1, stride=stride, bias=False),
+                nn.Conv2d(
+                    self.inplanes, planes, kernel_size=1, stride=stride, bias=False
+                ),
                 nn.BatchNorm2d(planes),
             )
 
-        layers = [block(self.inplanes, planes, stride=stride, downsample=downsample, expansion=expansion)]
+        layers = [
+            block(
+                self.inplanes,
+                planes,
+                stride=stride,
+                downsample=downsample,
+                expansion=expansion,
+            )
+        ]
         self.inplanes = planes
         for i in range(1, blocks):
             layers.append(block(self.inplanes, planes, expansion=expansion))
@@ -212,7 +234,7 @@ class MobileCount(nn.Module):
         x4 = self.relu(x4)
         x4 = self.mflow_conv_g1_pool(x4)
         x4 = self.mflow_conv_g1_b3_joint_varout_dimred(x4)
-        x4 = nn.Upsample(size=l3.size()[2:], mode='bilinear')(x4)
+        x4 = nn.Upsample(size=l3.size()[2:], mode="bilinear")(x4)
 
         l3 = self.dropout3(l3)
         x3 = self.p_ims1d2_outl2_dimred(l3)
@@ -221,7 +243,7 @@ class MobileCount(nn.Module):
         x3 = F.relu(x3)
         x3 = self.mflow_conv_g2_pool(x3)
         x3 = self.mflow_conv_g2_b3_joint_varout_dimred(x3)
-        x3 = nn.Upsample(size=l2.size()[2:], mode='bilinear')(x3)
+        x3 = nn.Upsample(size=l2.size()[2:], mode="bilinear")(x3)
 
         x2 = self.p_ims1d2_outl3_dimred(l2)
         x2 = self.adapt_stage3_b2_joint_varout_dimred(x2)
@@ -229,7 +251,7 @@ class MobileCount(nn.Module):
         x2 = F.relu(x2)
         x2 = self.mflow_conv_g3_pool(x2)
         x2 = self.mflow_conv_g3_b3_joint_varout_dimred(x2)
-        x2 = nn.Upsample(size=l1.size()[2:], mode='bilinear')(x2)
+        x2 = nn.Upsample(size=l1.size()[2:], mode="bilinear")(x2)
 
         x1 = self.p_ims1d2_outl4_dimred(l1)
         x1 = self.adapt_stage4_b2_joint_varout_dimred(x1)
@@ -243,7 +265,3 @@ class MobileCount(nn.Module):
         out = F.upsample(out, size=size1, mode='bilinear')
 
         return out
-
-
-
-
