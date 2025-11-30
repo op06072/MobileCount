@@ -163,11 +163,12 @@ class Trainer:
             self.timer["iter time"].tic()
             img = Variable(data[0]).to(self.device)
             gt_map = Variable(data[1]).to(self.device)
+
+            sample_weight = None
             if len(data) == 3:
                 sample_weight = Variable(data[2]).to(self.device)
 
             self.optimizer.zero_grad()
-
             if cfg.USE_AMP_TRAIN:
                 with torch.amp.autocast(self.device.type, dtype=self.amp_dtype):
                     pred_map = self.net(img, gt_map, sample_weight)
