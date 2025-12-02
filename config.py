@@ -22,7 +22,7 @@ if __C.DATASET == "GCC":  # only for GCC
 
     __C.VAL_MODE = cfg_data.VAL_MODE
 
-__C.NET = "MobileCount"  # net selection: MobileCount, MobileCountx1_25, MobileCountx2
+__C.NET = "MobileCount"  # net selection: MobileCount, MobileCountx1_25, MobileCountx2, MobileCountV3Large, MobileCountV3Small, MobileCountV3Lite, MobileCountV4, MobileCountV5
 __C.NET_BN = True
 __C.NET_ACT = True
 

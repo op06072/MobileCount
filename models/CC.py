@@ -14,6 +14,33 @@ class CrowdCounter(nn.Module):
             from .MobileCountx2 import MobileCount as net
         elif model_name == "LSANet":
             from .LSANet import LSANet as net
+        elif model_name == "MobileCountV3Large":
+            from .MobileCountV3 import MobileCountV3
+            from functools import partial
+
+            net = partial(MobileCountV3, backbone="large")
+        elif model_name == "MobileCountV3Small":
+            from .MobileCountV3 import MobileCountV3
+            from functools import partial
+
+            net = partial(MobileCountV3, backbone="small")
+        elif model_name == "MobileCountV3Lite":
+            from .MobileCountV3Lite import MobileCountV3Lite as net
+        elif model_name == "MobileCountV4":
+            from .MobileCountTimm import MobileCountTimm
+
+            # Using partial to pass arguments since net() is called without args below
+            from functools import partial
+
+            net = partial(
+                MobileCountTimm, model_name="mobilenetv4_conv_small.e2400_r224_in1k"
+            )
+        elif model_name == "MobileCountV5":
+            from .MobileCountTimm import MobileCountTimm
+            from functools import partial
+
+            # Using a likely available V5 model name from timm
+            net = partial(MobileCountTimm, model_name="mobilenetv5_300m.gemma3n")
         else:
             from .MobileCount import MobileCount as net
 
