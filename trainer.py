@@ -87,7 +87,7 @@ class Trainer:
 
         # Determine dtype for autocast (computed once)
         self.amp_dtype = torch.float16
-        if self.device.type == "cuda" and torch.cuda.is_bf16_supported():
+        if self.device.type == "cuda" and torch.cuda.get_device_properties(torch.cuda.current_device()).major >= 8:
             self.amp_dtype = torch.bfloat16
 
         self.i_tb = 0
