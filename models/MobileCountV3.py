@@ -156,7 +156,7 @@ class MobileCountV3(nn.Module):
         x1 = self.p_ims1d2_outl4_dimred(l1)
         x1 = self.adapt_stage4_b2_joint_varout_dimred(x1)
         x1 = x1 + x2
-        x1 = F.silu(x1)
+        x1 = F.relu(x1)
         x1 = self.mflow_conv_g4_pool(x1)
 
         x1 = self.dropout_clf(x1)
