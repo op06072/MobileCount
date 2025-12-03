@@ -11,7 +11,8 @@ from multiprocessing.managers import DictProxy
 
 
 def loading_data(
-        datas: DataDict | DictProxy,
+        train_datas: DataDict | DictProxy,
+        val_datas: DataDict | DictProxy,
         data_workers: int = 0
 ) -> Tuple[DataLoader[Any] | None, DataLoader[Any], own_transforms.Compose]:
     mean_std = cfg_data.MEAN_STD
@@ -20,6 +21,11 @@ def loading_data(
     cl = CollateFN(cfg_data.TRAIN_SIZE)
     collate = (
         cl.collate if cfg_data.COLLATE_FN and cfg_data.TRAIN_BATCH_SIZE != 1 else None
+    )
+
+    val_cl = CollateFN(cfg_data.VAL_SIZE)
+    val_collate = (
+        val_cl.collate if cfg_data.VAL_COLLATE_FN and cfg_data.VAL_BATCH_SIZE != 1 else None
     )
 
     # Add here specific transform func :
@@ -129,7 +135,7 @@ def loading_data(
         image_size=cfg_data.IMAGE_SIZE,
         **cfg_data.PATH_SETTINGS,
     )
-    train_set.setdict(datas)
+    train_set.setdict(train_datas)
     train_loader = DataLoader(
         train_set,
         batch_size=cfg_data.TRAIN_BATCH_SIZE,
@@ -149,13 +155,14 @@ def loading_data(
         image_size=cfg_data.IMAGE_SIZE,
         **cfg_data.PATH_SETTINGS,
     )
-    val_set.setdict(datas)
+    val_set.setdict(val_datas)
     val_loader = None
     if len(val_set) > 0:
         val_loader = DataLoader(
             val_set,
             batch_size=cfg_data.VAL_BATCH_SIZE,
             num_workers=data_workers,
+            collate_fn=val_collate,
             shuffle=True,
             drop_last=False,
             persistent_workers=(data_workers != 0),

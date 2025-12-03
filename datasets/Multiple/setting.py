@@ -20,6 +20,10 @@ __C_DYN.TRAIN_SIZE = (
     576,
     768,
 )  # SHHB sizes (576, 768), WE raw sizes (576, 720) need padding, GCC (480, 848)
+__C_DYN.VAL_SIZE = (
+    1024,
+    1024
+)
 __C_DYN.LIST_C_DATASETS = [
     # (CustomGCC, 'exp/data/GCC'),
     (CustomSHH, "exp/data/shanghaitech_part_A"),
@@ -65,6 +69,7 @@ __C_DYN.MEAN_STD = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 
 # __C_DYN.PROB = [0.2, 0.4, 0.4] # proba getting images
 __C_DYN.COLLATE_FN = False
+__C_DYN.VAL_COLLATE_FN = True
 # better to remove because use in collate but no effect
 # __C_DYN.LABEL_FACTOR = 1
 __C_DYN.LOG_PARA = 2550.0

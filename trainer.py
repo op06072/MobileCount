@@ -119,12 +119,15 @@ class Trainer:
             multiple_loading = cfg_data.MULTIPLE_DATALOADER
         if multiple_loading:
             if cfg.DATA_WORKERS == 0:
-                datas: DictProxy[str, List[Image]] | DataDict = {}
+                train_datas: DictProxy[str, List[Image]] | DataDict = {}
+                val_datas: DictProxy[str, List[Image]] | DataDict = {}
             else:
-                self.manager = Manager()
-                datas = self.manager.dict()
+                self.train_manager = Manager()
+                train_datas = self.train_manager.dict()
+                self.val_manager = Manager()
+                val_datas = self.val_manager.dict()
             self.train_loader, self.val_loader, self.restore_transform = dataloader(
-                datas, data_workers=cfg.DATA_WORKERS
+                train_datas, val_datas, data_workers=cfg.DATA_WORKERS
             )
         else:
             self.train_loader, self.val_loader, self.restore_transform = dataloader()
