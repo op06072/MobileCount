@@ -131,7 +131,7 @@ class MobileCountV3(nn.Module):
         # Decoder
         l4 = self.dropout4(l4)
         x4 = self.p_ims1d2_outl1_dimred(l4)
-        x4 = F.silu(x4)  # Using SiLU as in V3
+        x4 = F.hardswish(x4, inplace=True)  # Using SiLU as in V3
         x4 = self.mflow_conv_g1_pool(x4)
         x4 = self.mflow_conv_g1_b3_joint_varout_dimred(x4)
         x4 = nn.Upsample(size=l3.size()[2:], mode="bilinear")(x4)
@@ -139,24 +139,24 @@ class MobileCountV3(nn.Module):
         l3 = self.dropout3(l3)
         x3 = self.p_ims1d2_outl2_dimred(l3)
         x3 = self.adapt_stage2_b2_joint_varout_dimred(x3)
-        x3 = x3 + x4
-        x3 = F.silu(x3)
+        x3 += x4
+        x3 = F.hardswish(x3, inplace=True)
         x3 = self.mflow_conv_g2_pool(x3)
         x3 = self.mflow_conv_g2_b3_joint_varout_dimred(x3)
         x3 = nn.Upsample(size=l2.size()[2:], mode="bilinear")(x3)
 
         x2 = self.p_ims1d2_outl3_dimred(l2)
         x2 = self.adapt_stage3_b2_joint_varout_dimred(x2)
-        x2 = x2 + x3
-        x2 = F.silu(x2)
+        x2 += x3
+        x2 = F.hardswish(x2, inplace=True)
         x2 = self.mflow_conv_g3_pool(x2)
         x2 = self.mflow_conv_g3_b3_joint_varout_dimred(x2)
         x2 = nn.Upsample(size=l1.size()[2:], mode="bilinear")(x2)
 
         x1 = self.p_ims1d2_outl4_dimred(l1)
         x1 = self.adapt_stage4_b2_joint_varout_dimred(x1)
-        x1 = x1 + x2
-        x1 = F.relu(x1)
+        x1 += x2
+        x1 = F.relu(x1, inplace=True)
         x1 = self.mflow_conv_g4_pool(x1)
 
         x1 = self.dropout_clf(x1)

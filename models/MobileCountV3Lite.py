@@ -27,7 +27,7 @@ class SqueezeExcite(nn.Module):
         super(SqueezeExcite, self).__init__()
         reduced_chs = max(1, int(in_chs * se_ratio))
         self.conv_reduce = nn.Conv2d(in_chs, reduced_chs, 1, bias=True)
-        self.act1 = nn.SiLU(inplace=True)
+        self.act1 = nn.Hardswish(inplace=True)
         self.conv_expand = nn.Conv2d(reduced_chs, in_chs, 1, bias=True)
 
     def forward(self, x):
@@ -74,7 +74,7 @@ class InvertedResidualV3(nn.Module):
         self.conv3 = nn.Conv2d(hidden_dim, planes, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes, momentum=0.05)
 
-        self.act = nn.SiLU(inplace=True)
+        self.act = nn.Hardswish(inplace=True)
 
     def forward(self, x):
         residual = x
@@ -150,7 +150,7 @@ class MobileCountV3Lite(nn.Module):
         # Stem (same as original)
         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(32)
-        self.act = nn.SiLU(inplace=True)
+        self.act = nn.Hardswish(inplace=True)
 
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
@@ -241,7 +241,7 @@ class MobileCountV3Lite(nn.Module):
         # Decoder (RefineNet)
         l4 = self.dropout4(l4)
         x4 = self.p_ims1d2_outl1_dimred(l4)
-        x4 = F.silu(x4)
+        x4 = self.act(x4)
         x4 = self.mflow_conv_g1_pool(x4)
         x4 = self.mflow_conv_g1_b3_joint_varout_dimred(x4)
         x4 = nn.Upsample(size=l3.size()[2:], mode="bilinear")(x4)
@@ -249,23 +249,23 @@ class MobileCountV3Lite(nn.Module):
         l3 = self.dropout3(l3)
         x3 = self.p_ims1d2_outl2_dimred(l3)
         x3 = self.adapt_stage2_b2_joint_varout_dimred(x3)
-        x3 = x3 + x4
-        x3 = F.silu(x3)
+        x3 += x4
+        x3 = self.act(x3)
         x3 = self.mflow_conv_g2_pool(x3)
         x3 = self.mflow_conv_g2_b3_joint_varout_dimred(x3)
         x3 = nn.Upsample(size=l2.size()[2:], mode="bilinear")(x3)
 
         x2 = self.p_ims1d2_outl3_dimred(l2)
         x2 = self.adapt_stage3_b2_joint_varout_dimred(x2)
-        x2 = x2 + x3
-        x2 = F.silu(x2)
+        x2 += x3
+        x2 = self.act(x2)
         x2 = self.mflow_conv_g3_pool(x2)
         x2 = self.mflow_conv_g3_b3_joint_varout_dimred(x2)
         x2 = nn.Upsample(size=l1.size()[2:], mode="bilinear")(x2)
 
         x1 = self.p_ims1d2_outl4_dimred(l1)
         x1 = self.adapt_stage4_b2_joint_varout_dimred(x1)
-        x1 = x1 + x2
+        x1 += x2
         x1 = F.relu(x1)
         x1 = self.mflow_conv_g4_pool(x1)
 
