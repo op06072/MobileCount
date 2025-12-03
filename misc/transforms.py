@@ -221,6 +221,29 @@ class RandomContrast(object):
         return img_output, mask
 
 
+class RandomGrayscale(object):
+    def __init__(self, p):
+        self.randomGrayScale = standard_transforms.RandomGrayscale(p=p)
+
+    def __call__(self, img, mask):
+        return self.randomGrayScale(img), mask
+
+
+class RandomContrastAugment(object):
+    """Randomly apply either AutoContrast or Equalize"""
+
+    def __init__(self, p=0.5):
+        self.p = p
+
+    def __call__(self, img, mask):
+        if random.random() < self.p:
+            if random.random() < 0.5:
+                img = ImageOps.autocontrast(img)  # 50% of augmented
+            else:
+                img = ImageOps.equalize(img)  # 50% of augmented
+        return img, mask
+
+
 class ColorJitter(object):
     def __init__(
         self,

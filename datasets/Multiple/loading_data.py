@@ -28,12 +28,26 @@ def loading_data(
         val_cl.collate if cfg_data.VAL_COLLATE_FN and cfg_data.VAL_BATCH_SIZE != 1 else None
     )
 
+    day_night_transform = own_transforms.Compose(
+        [
+            own_transforms.ColorJitter(
+                brightness=cfg_data.BRIGHTNESS_JITTER,
+                contrast=cfg_data.CONTRAST_JITTER,
+                saturation=cfg_data.SATURATION_JITTER,
+                hue=cfg_data.HUE_JITTER,
+            ),
+            own_transforms.RandomGrayscale(p=cfg_data.GRAYSCALE_PARA),
+            own_transforms.RandomContrastAugment(p=cfg_data.CONTRAST_PARA),
+        ]
+    )
+
     # Add here specific transform func :
     # Choose differents combinaison of transformations for each dataset
     train_main_transform_SHHA = own_transforms.Compose(
         [
             own_transforms.RandomCrop(cfg_data.TRAIN_SIZE),
             # own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
+            day_night_transform,
             own_transforms.RandomHorizontallyFlip(),
         ]
     )
@@ -43,6 +57,7 @@ def loading_data(
             own_transforms.RandomCrop(cfg_data.TRAIN_SIZE),
             # own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
             # own_transforms.RandomDownOverSampling(4),
+            day_night_transform,
             own_transforms.RandomHorizontallyFlip(),
         ]
     )
@@ -51,6 +66,7 @@ def loading_data(
         [
             own_transforms.RandomCrop(cfg_data.TRAIN_SIZE),
             # own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
+            day_night_transform,
             own_transforms.RandomHorizontallyFlip(),
         ]
     )
@@ -59,6 +75,7 @@ def loading_data(
         [
             own_transforms.RandomCrop(cfg_data.TRAIN_SIZE),
             # own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
+            day_night_transform,
             own_transforms.RandomHorizontallyFlip(),
             # own_transforms.WriteTexts(factor=0.75),
         ]
@@ -68,6 +85,7 @@ def loading_data(
         [
             own_transforms.RandomCrop(cfg_data.TRAIN_SIZE),
             # own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
+            day_night_transform,
             own_transforms.RandomHorizontallyFlip(),
         ]
     )
@@ -75,6 +93,7 @@ def loading_data(
     train_main_transform_GCC = own_transforms.Compose(
         [
             own_transforms.RandomCrop(cfg_data.TRAIN_SIZE),
+            day_night_transform,
             own_transforms.RandomHorizontallyFlip(),
         ]
     )
@@ -83,6 +102,7 @@ def loading_data(
         [
             own_transforms.RandomCrop(cfg_data.TRAIN_SIZE),
             # own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
+            day_night_transform,
             own_transforms.RandomHorizontallyFlip(),
         ]
     )
@@ -91,6 +111,7 @@ def loading_data(
         [
             own_transforms.RandomCrop(cfg_data.TRAIN_SIZE),
             # own_transforms.ColorJitter(brightness=0.5, contrast=0.5),
+            day_night_transform,
             own_transforms.RandomHorizontallyFlip(),
         ]
     )
