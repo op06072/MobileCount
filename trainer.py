@@ -169,7 +169,7 @@ class Trainer:
 
             sample_weight = None
             if len(data) == 3:
-                sample_weight = Variable(data[2]).to(self.device)
+                sample_weight = Variable(data[2]).to(self.device, torch.float)
 
             self.optimizer.zero_grad()
             if cfg.USE_AMP_TRAIN:
