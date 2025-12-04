@@ -266,8 +266,8 @@ class ColorJitter(object):
             self.action = False
 
     def __call__(self, img, mask):
-        if not self.action or random.random() > 0.5:
-            return img, mask
+        # if not self.action or random.random() > 0.5:
+        #     return img, mask
 
         img = standard_transforms.ColorJitter(
             brightness=self.brightness,
