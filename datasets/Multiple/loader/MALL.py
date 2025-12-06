@@ -15,6 +15,7 @@ class CustomMALL(CustomDataset):
         """
         super().__init__()
         self.subset = "MALL"
+        self.file_accuracy = 'hard'
         self.gt_name_folder = kwargs.get("MALL__gt_name_folder", "den")
         self.gt_format = kwargs.get("MALL__gt_format", ".mat")
         self.transform = kwargs.get("MALL__transform", None)
@@ -29,28 +30,28 @@ class CustomMALL(CustomDataset):
         """
         Read all images position in MALL Dataset
         """
-        img_list = [
-            f
-            for f in (self.folder / f"{self.mode}" / "img").glob("*")
-            if f.suffix not in ["txt", "zip"]
-        ]
+        img_list = (self.folder / f"{self.mode}" / "img").glob("*")
         gt_folder = self.folder / f"{self.mode}" / self.gt_name_folder
-        json_data = {}
-        for n, im in enumerate(img_list):
-            filename = Path(im).stem
-            gt_count = None
-            json_data[n] = {
-                "path_img": im,
-                "path_gt": gt_folder / (f"{filename}_soft{self.gt_format}"),
-                "gt_count": gt_count,
-                "folder": self.folder,
-                "sample_weight": self.dataset_weight,
-            }
-        df = pd.DataFrame.from_dict(json_data, orient="index")
+        json_data = []
+        for im in img_list:
+            if im.suffix not in ["txt", "zip"]:
+                filename = Path(im).stem
+                gt_count = None
+                json_data.append(
+                    {
+                        "path_img": im,
+                        "path_gt": gt_folder / f"{filename}_{self.file_accuracy}{self.gt_format}",
+                        "gt_count": gt_count,
+                        "folder": self.folder,
+                        "sample_weight": self.dataset_weight,
+                    }
+                )
+        # df = pd.DataFrame.from_dict(json_data, orient="index")
         print(
-            f"CustomMALL - subset:{self.subset} - mode:{self.mode} - df.shape:{df.shape}"
+            f"CustomQNRF - subset:{self.subset} - mode:{self.mode} - df.shape:{len(json_data)}x5"
         )
-        return df
+        # return df
+        return json_data
 
     def load_gt(self, filename):
         """
@@ -74,4 +75,6 @@ class CustomMALL(CustomDataset):
 
         if density_map is not None:
             self.check_density_map(density_map)
+        if self.file_accuracy == 'hard':
+            density_map /= 1e4
         return density_map
