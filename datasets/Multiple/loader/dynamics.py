@@ -57,13 +57,14 @@ class DynamicDataset(Dataset):
         self.image_size = image_size
         self.mode = mode
         self.kwargs = kwargs
-        self.dataset = pd.DataFrame([])
+        # self.dataset = pd.DataFrame([])
+        self.dataset_list = []
         self.read_dict = {}
         self.parse_dataset()
         self.datas = None
 
     def __len__(self):
-        return len(self.dataset)
+        return len(self.dataset_list)
 
     def resize(self, img):
         return img.resize(self.image_size, Image.BILINEAR)
@@ -71,43 +72,54 @@ class DynamicDataset(Dataset):
     def setdict(self, datas: DataDict | DictProxy):
         self.datas = datas
 
-        self.dataset = self.dataset.reset_index(drop=True)
-        # Optimization: Convert DataFrame to list of dicts for faster indexing
-        self.dataset_list = self.dataset.to_dict("records")
-        print(f"DynamicDataset - mode:{self.mode} - dataset.shape:{self.dataset.shape}")
+        # Initialize mode-specific sub-dict in main process (before workers fork)
+        # CRITICAL: Must create Manager dict for sub-dict, not regular dict!
+        if self.datas is not None and self.mode not in self.datas:
+            # Get Manager from parent dict to create child Manager dict
+
+            if hasattr(self.datas, "_manager"):
+                # DictProxy from Manager - create new Manager dict for sub-dict
+                manager = self.datas._manager
+                self.datas[self.mode] = manager.dict()
+            else:
+                # Regular dict (num_workers=0) - use regular dict
+                self.datas[self.mode] = {}
+
+        print(f"DynamicDataset - mode:{self.mode} - len:{len(self.dataset_list)}")
 
     def __getitem__(self, index):
         row = self.dataset_list[index]
-        # row is now a dict, so access with keys instead of attributes if it was a namedtuple,
-        # but previously it was a Series.
-        # Let's check how it was accessed: row.folder, row.path_img.
-        # Dict keys are strings.
-
-        folder_path = row["folder"]
-        # folder might be a Path object or string depending on how it was stored.
-        # In loaders (e.g. QNRF.py), 'folder' is a Path object.
-        # In read_dict keys are strings (folder.as_posix()).
-
-        if isinstance(folder_path, str):
-            folder_key = folder_path
-        else:
-            folder_key = folder_path.as_posix()
-
-        dataset_func = self.read_dict[folder_key]
-
         path_img = row["path_img"]
-        path_gt = row["path_gt"]
         sample_weight = row.get("sample_weight", 1)
 
-        if path_img not in self.datas:
+        folder_path = row["folder"]
+        folder_key = (
+            folder_path if isinstance(folder_path, str) else folder_path.as_posix()
+        )
+        dataset_func = self.read_dict[folder_key]
+
+        # Check cache (shared across workers via Manager dict)
+        if (
+            self.datas is not None
+            and self.mode in self.datas
+            and path_img in self.datas[self.mode]
+        ):
+            img, den = self.datas[self.mode][path_img]
+        else:
+            # Load from disk
+            path_gt = row["path_gt"]
             img, den = dataset_func["img"](path_img), dataset_func["gt"](path_gt)
             if self.image_size is not None:
                 img, den = self.resize(img), self.resize(den)
-            self.datas[path_img] = [img, den]
-        else:
-            img, den = self.datas[path_img]
 
-        # specific dataset transform in img and den
+            # Store in shared cache (Manager sub-dict)
+            if self.datas is not None:
+                self.datas[self.mode][path_img] = [img, den]
+
+                if (len_data := len(self.datas[self.mode])) % 100 == 0:
+                    print(f"[{self.mode}] Cached {len_data} images")
+
+        # Apply transforms
         specific_func = dataset_func["transform"]
         img, den = self.transform_img(img, den, specific=specific_func)
         return img, den, sample_weight
@@ -127,14 +139,18 @@ class DynamicDataset(Dataset):
     def parse_dataset(self):
         for LoadClass, folder_dataset in self.couple_datasets:
             loader = LoadClass(folder_dataset, self.mode, **self.kwargs)
-            self.dataset = pd.concat((self.dataset, loader.dataset), axis=0)
+            self.dataset_list += loader.dataset
+            # self.dataset = pd.concat((self.dataset, loader.dataset), axis=0)
             self.read_dict[folder_dataset] = {
                 "gt": loader.read_gt,
                 "img": loader.read_image,
                 "transform": loader.transform,
             }
-        self.dataset = self.dataset.reset_index(drop=True)
-        print(f"DynamicDataset - mode:{self.mode} - dataset.shape:{self.dataset.shape}")
+
+        # self.dataset = self.dataset.reset_index(drop=True)
+        print(
+            f"DynamicDataset - mode:{self.mode} - dataset.shape:{len(self.dataset_list)}x5"
+        )
 
 
 class CustomDataset:

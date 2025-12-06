@@ -11,8 +11,7 @@ from multiprocessing.managers import DictProxy
 
 
 def loading_data(
-        train_datas: DataDict | DictProxy,
-        val_datas: DataDict | DictProxy,
+        datas: DataDict | DictProxy,
         data_workers: int = 0
 ) -> Tuple[DataLoader[Any] | None, DataLoader[Any], own_transforms.Compose]:
     mean_std = cfg_data.MEAN_STD
@@ -156,7 +155,7 @@ def loading_data(
         image_size=cfg_data.IMAGE_SIZE,
         **cfg_data.PATH_SETTINGS,
     )
-    train_set.setdict(train_datas)
+    train_set.setdict(datas)
     train_loader = DataLoader(
         train_set,
         batch_size=cfg_data.TRAIN_BATCH_SIZE,
@@ -176,7 +175,7 @@ def loading_data(
         image_size=cfg_data.IMAGE_SIZE,
         **cfg_data.PATH_SETTINGS,
     )
-    val_set.setdict(val_datas)
+    val_set.setdict(datas)
     val_loader = None
     if len(val_set) > 0:
         val_loader = DataLoader(

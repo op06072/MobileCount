@@ -10,14 +10,14 @@ from misc.utils import *
 from models.CC import CrowdCounter
 
 from PIL.Image import Image
-from typing import Any, List
+from pathlib import Path
+from typing import Any, Dict, List
 from datasets import DataDict
 from easydict import EasyDict
 from misc.transforms import Compose
 from torch.utils.data import DataLoader
 from multiprocessing.managers import DictProxy
 from models.layer import CyclicLRWithRestarts, CosineAnnealingWarmupRestarts
-import train
 from iafoule.metrics import get_metrics
 
 
@@ -101,6 +101,7 @@ class Trainer:
         self.train_loader: DataLoader[Any] | None
         self.val_loader: DataLoader[Any]
         self.restore_transform: Compose
+
         """
         if self.data_mode in ["SHHA", "SHHB", "QNRF", "UCF50"]:
             if cfg.DATA_WORKERS == 0:
@@ -117,20 +118,19 @@ class Trainer:
         multiple_loading = self.data_mode in ["SHHA", "SHHB", "QNRF", "UCF50"]
         if hasattr(cfg_data, "MULTIPLE_DATALOADER"):
             multiple_loading = cfg_data.MULTIPLE_DATALOADER
+        datas: DictProxy[str, Dict[Path, Image]] | Dict[str, Dict[Path, Image]] = {}
         if multiple_loading:
-            if cfg.DATA_WORKERS == 0:
-                train_datas: DictProxy[str, List[Image]] | DataDict = {}
-                val_datas: DictProxy[str, List[Image]] | DataDict = {}
-            else:
-                self.train_manager = Manager()
-                train_datas = self.train_manager.dict()
-                self.val_manager = Manager()
-                val_datas = self.val_manager.dict()
+            if cfg.DATA_WORKERS != 0:
+                self.manager = Manager()
+                datas = self.manager.dict()
             self.train_loader, self.val_loader, self.restore_transform = dataloader(
-                train_datas, val_datas, data_workers=cfg.DATA_WORKERS
+                datas, data_workers=cfg.DATA_WORKERS
             )
         else:
-            self.train_loader, self.val_loader, self.restore_transform = dataloader()
+            self.train_loader, self.val_loader, self.restore_transform = dataloader(
+                datas,
+                data_workers=cfg.DATA_WORKERS
+            )
 
     def forward(self):
         # self.validate_V1()

@@ -20,10 +20,11 @@ __C_DYN.TRAIN_SIZE = (
     576,
     768,
 )  # SHHB sizes (576, 768), WE raw sizes (576, 720) need padding, GCC (480, 848)
-__C_DYN.VAL_SIZE = (
-    1024,
-    1024
-)
+# __C_DYN.VAL_SIZE = (
+#     1024,
+#     1024
+# )
+__C_DYN.VAL_SIZE = None
 __C_DYN.LIST_C_DATASETS = [
     # (CustomGCC, 'exp/data/GCC'),
     (CustomSHH, "exp/data/shanghaitech_part_A"),
