@@ -6,7 +6,7 @@ import os.path
 from datasets.MALL.MALL import MALL
 from torch.utils.data import DataLoader
 import misc.transforms as own_transforms
-from datasets.SHHA.setting import cfg_data
+from datasets.MALL.setting import cfg_data
 import torchvision.transforms as standard_transforms
 
 from typing import Tuple, Any
@@ -89,7 +89,7 @@ def MALL_collate(batch):
     raise TypeError((error_msg.format(type(batch[0]))))
 
 
-def leading_data(
+def loading_data(
         datas: DataDict | DictProxy,
         data_workers: int = 0,
 ) -> Tuple[DataLoader[Any] | None, DataLoader[Any], own_transforms.Compose]:
