@@ -3,7 +3,6 @@ from pathlib import Path
 import h5py
 import scipy.io as sio
 import numpy as np
-import pandas as pd
 from PIL import Image
 
 from .dynamics import CustomDataset
@@ -65,6 +64,10 @@ class CustomMALL(CustomDataset):
                     density_map = mat_data["map"]
             except Exception as e:
                 print(f"Error loading {filename}: {e}")
+        elif Path(filename).suffix == ".csv":
+            # CSV loading (much faster than MAT)
+            # density_map = pd.read_csv(filename, header=None).values.astype(np.float32)
+            density_map = np.loadtxt(filename, delimiter=",").astype(np.float32, copy=False)
         elif Path(filename).suffix == ".h5":
             gt_file = h5py.File(filename, "r")
             density_map = np.asarray(gt_file["density"])

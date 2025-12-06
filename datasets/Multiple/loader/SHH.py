@@ -2,7 +2,6 @@ from pathlib import Path
 
 import h5py
 import numpy as np
-import pandas as pd
 from scipy.sparse import load_npz
 from PIL import Image
 
@@ -69,8 +68,9 @@ class CustomSHH(CustomDataset):
             gt_file = h5py.File(filename)
             density_map = np.asarray(gt_file['density'])
         elif Path(filename).suffix == '.csv':
-            density_map = pd.read_csv(filename, sep=',', header=None).values
-            density_map = density_map.astype(np.float32, copy=False)
+            # density_map = pd.read_csv(filename, sep=',', header=None).values
+            density_map = np.loadtxt(filename, delimiter=',').astype(np.float32, copy=False)
+            # density_map = density_map.astype(np.float32, copy=False)
             # density_map = Image.fromarray(density_map)
 
         self.check_density_map(density_map)

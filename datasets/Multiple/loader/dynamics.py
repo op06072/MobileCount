@@ -2,7 +2,6 @@ import logging as lg
 import random
 
 import numpy as np
-import pandas as pd
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
